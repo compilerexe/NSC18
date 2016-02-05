@@ -22,10 +22,13 @@ char* directory           = ""; // directory in current
 char* select_current      = "Select timer"; // first select
 
 /* Setting Timer */
+int reboot_time           = 6; // second
+int move_right            = 0;
 int hour                  = 0;
 int minute                = 0;
 char display_h[2];
 char display_m[2];
+char display_reboot[2];
 
 /* Dht22  */
 int dht_counting_fail     = 0;
@@ -293,6 +296,23 @@ void FUNCTION_NORMAL() {
   }
 }
 
+void FUNCTION_WRITE_EEPROM() {
+  reboot_time--;
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Save sucess.");
+  lcd.setCursor(0,2);
+  lcd.print("Reboot in ");
+  sprintf(display_reboot, "%d", reboot_time);
+  lcd.print(display_reboot);
+  lcd.print(" second");
+  if (reboot_time == 0) {
+    lcd.clear();
+    Esp.reset();
+  }
+  delay(1000);
+}
+
 void FUNCTION_SETTING() {
   directory = "root";
 
@@ -308,55 +328,84 @@ void FUNCTION_SETTING() {
 void FUNCTION_SET_TIMER() {
   directory = "root/set_timer";
   
-  if (select_current == "Select hour" || select_current == "Set hour is active.") {
-    lcd.setCursor(0,0);
-    lcd.print("Set Timer (24 Hour)");
-    lcd.setCursor(0,1);
-    lcd.print("  Day    : auto");
-    lcd.setCursor(0,2);
-    lcd.write(4);
-    lcd.print(" Hour   : ");
-    sprintf(display_h, "%d", hour);
-    lcd.print(display_h);
-    lcd.setCursor(0,3);
-    lcd.print("  Minute : ");
-    sprintf(display_m, "%d", minute);
-    lcd.print(display_m);
+  if (reboot_time < 6) {
+    FUNCTION_WRITE_EEPROM();
+  } else {
 
-    if (minute > 9) {
-      lcd.print("   ");
-    } else {
-      lcd.print("    ");
+    if (select_current == "Select hour" || select_current == "Set hour is active.") {
+      lcd.setCursor(0,0);
+      lcd.print("Set Timer (24 Hour)");
+      lcd.setCursor(0,1);
+      lcd.print("  Day    : auto");
+      lcd.setCursor(0,2);
+      lcd.write(4);
+      lcd.print(" Hour   : ");
+      sprintf(display_h, "%d", hour);
+      lcd.print(display_h);
+      lcd.setCursor(0,3);
+      lcd.print("  Minute : ");
+      sprintf(display_m, "%d", minute);
+      lcd.print(display_m);
+
+      if (minute > 9) {
+        lcd.print("   ");
+      } else {
+        lcd.print("    ");
+      }
+
+      lcd.print("Save");
     }
 
-    lcd.print("Save");
-  }
-
-  if (select_current == "Select minute" || select_current == "Set minute is active.") {
-    lcd.setCursor(0,0);
-    lcd.print("Set Timer (24 Hour)");
-    lcd.setCursor(0,1);
-    lcd.print("  Day    : auto");
-    lcd.setCursor(0,2);
-    lcd.print("  Hour   : ");
-    sprintf(display_h, "%d", hour);
-    lcd.print(display_h);
-    lcd.setCursor(0,3);
-    lcd.write(4);
-    lcd.print(" Minute : ");
-    sprintf(display_m, "%d", minute);
-    lcd.print(display_m);
-    
-    if (minute > 9) {
-      lcd.print("   ");
-    } else {
-      lcd.print("    ");
+    if (select_current == "Select minute" || select_current == "Set minute is active.") {
+      lcd.setCursor(0,0);
+      lcd.print("Set Timer (24 Hour)");
+      lcd.setCursor(0,1);
+      lcd.print("  Day    : auto");
+      lcd.setCursor(0,2);
+      lcd.print("  Hour   : ");
+      sprintf(display_h, "%d", hour);
+      lcd.print(display_h);
+      lcd.setCursor(0,3);
+      lcd.write(4);
+      lcd.print(" Minute : ");
+      sprintf(display_m, "%d", minute);
+      lcd.print(display_m);
+      
+      if (minute > 9) {
+        lcd.print("   ");
+      } else {
+        lcd.print("    ");
+      }
+      
+      lcd.print("Save");
     }
-    
-    lcd.print("Save");
-  }
 
+    if (select_current == "Select save") {
+      lcd.setCursor(0,0);
+      lcd.print("Set Timer (24 Hour)");
+      lcd.setCursor(0,1);
+      lcd.print("  Day    : auto");
+      lcd.setCursor(0,2);
+      lcd.print("  Hour   : ");
+      sprintf(display_h, "%d", hour);
+      lcd.print(display_h);
+      lcd.setCursor(0,3);
+      lcd.print("  Minute : ");
+      sprintf(display_m, "%d", minute);
+      lcd.print(display_m);
+      
+      if (minute > 9) {
+        lcd.print("  ");
+      } else {
+        lcd.print("  ");
+      }
 
+      lcd.write(4);
+      lcd.print(" Save");
+      Serial.println("test");
+    }
+
+  } // End check reboot time
 
 }
 
@@ -374,10 +423,6 @@ void BTN_STATE() {
 
       if (directory == "root/set_timer") {
         
-        if (select_current == "Select minute") {
-          select_current = "Select hour";
-        }
-
         if (select_current == "Set hour is active.") {
           hour--;
           if (hour < 0) {
@@ -414,8 +459,21 @@ void BTN_STATE() {
 
       if (directory == "root/set_timer") {
         
-        if (select_current == "Select hour") {
-          select_current = "Select minute";
+        if (select_current != "Set hour is active." && select_current != "Set minute is active.") {
+          move_right++;
+
+          if (move_right == 3) {
+              select_current = "Select hour";
+              move_right = 0;
+          }
+
+          if (move_right == 2) {
+              select_current = "Select save";
+          }
+
+          if (move_right == 1) {
+              select_current = "Select minute";
+          }
         }
 
         if (select_current == "Set hour is active.") {
@@ -460,6 +518,11 @@ void BTN_STATE() {
 
         if (select_current == "Select minute") {
           select_current = "Set minute is active.";
+        }
+
+        if (select_current == "Select save") {
+          select_current = "Save data to eeprom.";
+          FUNCTION_WRITE_EEPROM();
         }
 
       }
@@ -521,24 +584,26 @@ void loop() {
 
     // get_heap();
 
-    if (directory == "") {
-      select_current = "Select timer";
-      FUNCTION_SETTING();
+    if (reboot_time < 6) {
+      FUNCTION_WRITE_EEPROM();
+    } else {
+
+      if (directory == "") {
+        select_current = "Select timer";
+        FUNCTION_SETTING();
+      }
+
+      BTN_STATE();
+
     }
-
-    BTN_STATE();
-
-    // test++;
-
-    // Serial.print(test);
-    // Serial.print(" ");
-    // get_heap();
 
     Serial.println("==============");
     Serial.print("directory : ");
     Serial.println(directory);
     Serial.print("select current : ");
     Serial.println(select_current);
+    Serial.print("move right : ");
+    Serial.println(move_right);
     Serial.println("==============");
 
   } else {

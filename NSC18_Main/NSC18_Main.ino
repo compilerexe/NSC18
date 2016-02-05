@@ -6,7 +6,7 @@
 #include <ESP8266WiFi.h>
 #include "Esp.h"
 
-#define DHTPIN      D0
+#define DHTPIN      D4
 #define DHTTYPE     DHT22
 
 #define BTN_LEFT    D5
@@ -17,20 +17,18 @@
 #define I2C_SCL     D1
 #define I2C_SDA     D2
 
-int test = 0;
-
-char* boot_mode           = "setting"; // if setting don't forgot remove.
-char* first_main          = "blank";
+char* boot_mode           = ""; // if setting don't forgot remove.
 char* directory           = ""; // directory in current
-char* select_current      = "Set Timer"; // first select
-char* refresh_display     = "";
+char* select_current      = "Select timer"; // first select
 
 /* Setting Timer */
 int hour                  = 0;
 int minute                = 0;
-int move_data             = 0;
 char display_h[2];
 char display_m[2];
+
+/* Dht22  */
+int dht_counting_fail     = 0;
 
 /* detect button */
 char* run_left            = "";
@@ -56,7 +54,7 @@ EspClass Esp;
 WiFiClient client;
 DHT dht(DHTPIN, DHTTYPE);
 RTC_DS3231 RTC;
-LiquidCrystal_I2C lcd(0x26, 20, 4);
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 unsigned long previousMillis  = 0;
 unsigned long currentMillis;
@@ -81,8 +79,6 @@ void setup()
     pinMode(BTN_RIGHT,  INPUT); // RIGHT
     pinMode(BTN_CENTER, INPUT); // ENTER
     pinMode(BTN_BACK,   INPUT); // BACK
-
-    // Wire.begin(I2C_SCL, I2C_SDA);
 
     lcd.begin();
     lcd.createChar(4, ICON_SELECT);
@@ -109,8 +105,6 @@ void setup()
     Serial.println("WiFi connected");  
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
-    
-    Wire.begin(I2C_SCL, I2C_SDA);
   
     dht.begin();
     delay(100);
@@ -280,6 +274,12 @@ void FUNCTION_NORMAL() {
     lcd.clear();
     
     if (isnan(h) || isnan(t)) {
+
+      if (dht_counting_fail == 20) {
+        Esp.reset();
+      }
+
+      dht_counting_fail++;
       Serial.println("Failed to read from DHT sensor!");
       return;
     }
@@ -293,64 +293,71 @@ void FUNCTION_NORMAL() {
   }
 }
 
-void FUNCTION_MODE() {
-
+void FUNCTION_SETTING() {
   directory = "root";
 
-  if (first_main == "blank") {
-    first_main = "";
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Slect Mode");
-    lcd.setCursor(0, 1);
-    lcd.write(4);
-    lcd.print(" Set Timer");
-    lcd.setCursor(0, 2);
-    lcd.print("  Set Alert");
-  }
-
-  if (refresh_display == "refresh current to set timer") {
-    lcd.setCursor(0, 0);
-    lcd.print("Slect Mode");
-    lcd.setCursor(0, 1);
-    lcd.write(4);
-    lcd.print(" Set Timer");
-    lcd.setCursor(0, 2);
-    lcd.print("  Set Alert");
-  }
-
-  if (refresh_display == "refresh current to set alert") {
-    lcd.setCursor(0, 0);
-    lcd.print("Slect Mode");
-    lcd.setCursor(0, 1);
-    lcd.print("  Set Timer");
-    lcd.setCursor(0, 2);
-    lcd.write(4);
-    lcd.print(" Set Alert");
-  }
-
-  delay(100);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Slect Mode");
+  lcd.setCursor(0, 2);
+  lcd.write(4);
+  lcd.print(" Set Timer"); 
 
 }
 
 void FUNCTION_SET_TIMER() {
   directory = "root/set_timer";
-  lcd.print("Set Timer (24 Hour)");
-  lcd.setCursor(0,1);
-  lcd.print("Day    : auto");
-  lcd.setCursor(0,2);
-  lcd.print("Hour   : ");
-  sprintf(display_h, "%d", hour);
-  lcd.print(display_h);
-  lcd.setCursor(0,3);
-  lcd.print("Minute : ");
-  sprintf(display_m, "%d", minute);
-  lcd.print(display_m);
-}
+  
+  if (select_current == "Select hour" || select_current == "Set hour is active.") {
+    lcd.setCursor(0,0);
+    lcd.print("Set Timer (24 Hour)");
+    lcd.setCursor(0,1);
+    lcd.print("  Day    : auto");
+    lcd.setCursor(0,2);
+    lcd.write(4);
+    lcd.print(" Hour   : ");
+    sprintf(display_h, "%d", hour);
+    lcd.print(display_h);
+    lcd.setCursor(0,3);
+    lcd.print("  Minute : ");
+    sprintf(display_m, "%d", minute);
+    lcd.print(display_m);
 
-void FUNCTION_SET_ALERT() {
-  directory = "root/set_alert";
-  lcd.print("Set Alert");
+    if (minute > 9) {
+      lcd.print("   ");
+    } else {
+      lcd.print("    ");
+    }
+
+    lcd.print("Save");
+  }
+
+  if (select_current == "Select minute" || select_current == "Set minute is active.") {
+    lcd.setCursor(0,0);
+    lcd.print("Set Timer (24 Hour)");
+    lcd.setCursor(0,1);
+    lcd.print("  Day    : auto");
+    lcd.setCursor(0,2);
+    lcd.print("  Hour   : ");
+    sprintf(display_h, "%d", hour);
+    lcd.print(display_h);
+    lcd.setCursor(0,3);
+    lcd.write(4);
+    lcd.print(" Minute : ");
+    sprintf(display_m, "%d", minute);
+    lcd.print(display_m);
+    
+    if (minute > 9) {
+      lcd.print("   ");
+    } else {
+      lcd.print("    ");
+    }
+    
+    lcd.print("Save");
+  }
+
+
+
 }
 
 void BTN_STATE() {
@@ -365,23 +372,20 @@ void BTN_STATE() {
       
       Serial.println("LEFT");
 
-      if (directory == "root") {
-        select_current        = "Set Timer";
-        refresh_display       = "refresh current to set timer";
-        lcd.clear();
-        FUNCTION_MODE();
-      } 
-
       if (directory == "root/set_timer") {
         
-        if (move_data == 1) {
+        if (select_current == "Select minute") {
+          select_current = "Select hour";
+        }
+
+        if (select_current == "Set hour is active.") {
           hour--;
           if (hour < 0) {
               hour = 23;
           }
         }
 
-        if (move_data == 2) {
+        if (select_current == "Set minute is active.") {
           minute--;
           if (minute < 0) {
               minute = 59;
@@ -408,28 +412,25 @@ void BTN_STATE() {
       
       Serial.println("RIGHT");
 
-      if (directory == "root") {
-        select_current        = "Set Alert";
-        refresh_display       = "refresh current to set alert";
-        lcd.clear();
-        FUNCTION_MODE();
-      }
-
       if (directory == "root/set_timer") {
-          
-          if (move_data == 1) {
-            hour++;
-            if (hour > 23) {
-              hour = 0;
-            }
-          }
+        
+        if (select_current == "Select hour") {
+          select_current = "Select minute";
+        }
 
-          if (move_data == 2) {
-            minute++;
-            if (minute > 59) {
-              minute = 0;
-            }
+        if (select_current == "Set hour is active.") {
+          hour++;
+          if (hour > 23) {
+              hour = 0;
           }
+        }
+
+        if (select_current == "Set minute is active.") {
+          minute++;
+          if (minute > 59) {
+              minute = 0;
+          }
+        }
 
         lcd.clear();
         FUNCTION_SET_TIMER();
@@ -451,24 +452,22 @@ void BTN_STATE() {
       
       Serial.println("CENTER");
       
-      if (select_current == "Set Timer") { //select timer
-        lcd.clear();
-        FUNCTION_SET_TIMER();
-      }
-
-      if (select_current == "Set Alert") { //select alert
-        lcd.clear();
-        FUNCTION_SET_ALERT();
-      }
-      
       if (directory == "root/set_timer") {
 
-        if (move_data > 2) {
-          move_data = 0;
-        } else {
-          move_data++;
+        if (select_current == "Select hour") {
+          select_current = "Set hour is active.";
         }
 
+        if (select_current == "Select minute") {
+          select_current = "Set minute is active.";
+        }
+
+      }
+
+      if (select_current == "Select timer") { //select timer
+        select_current = "Select hour";
+        lcd.clear();
+        FUNCTION_SET_TIMER();
       }
 
       run_center = "";
@@ -488,18 +487,19 @@ void BTN_STATE() {
       Serial.println("BACK");
       
       if (directory == "root/set_timer") {
-        move_data         = 0;
-        directory         = "";
-        first_main        = "blank";
-        lcd.clear();
-        FUNCTION_MODE();
-      }
 
-      if (directory == "root/set_alert") {
-        directory         = "";
-        first_main        = "blank";
-        lcd.clear();
-        FUNCTION_MODE();
+        if (select_current == "Set hour is active.") {
+          select_current = "Select hour";
+          lcd.clear();
+          FUNCTION_SET_TIMER();
+        }
+
+        if (select_current == "Set minute is active.") {
+          select_current = "Select minute";
+          lcd.clear();
+          FUNCTION_SET_TIMER();
+        }
+
       }
    
       run_back = "";
@@ -522,24 +522,24 @@ void loop() {
     // get_heap();
 
     if (directory == "") {
-      lcd.clear();
-      FUNCTION_MODE();
+      select_current = "Select timer";
+      FUNCTION_SETTING();
     }
 
     BTN_STATE();
 
-    test++;
+    // test++;
 
-    Serial.print(test);
-    Serial.print(" ");
-    get_heap();
+    // Serial.print(test);
+    // Serial.print(" ");
+    // get_heap();
 
-    // Serial.println("==============");
-    // Serial.print("directory : ");
-    // Serial.println(directory);
-    // Serial.print("select_current : ");
-    // Serial.println(select_current);
-    // Serial.println("==============");
+    Serial.println("==============");
+    Serial.print("directory : ");
+    Serial.println(directory);
+    Serial.print("select current : ");
+    Serial.println(select_current);
+    Serial.println("==============");
 
   } else {
 

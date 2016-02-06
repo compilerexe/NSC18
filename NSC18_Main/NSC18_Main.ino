@@ -7,28 +7,39 @@
 #include <Esp.h>
 #include <EEPROM.h>
 
-#define DHTPIN      D4
-#define DHTTYPE     DHT22
+#define DHTPIN            D4
+#define DHTTYPE           DHT22
 
-#define BTN_LEFT    D5
-#define BTN_RIGHT   D6
-#define BTN_CENTER  D7
-#define BTN_BACK    D8
+#define ACTIVE_RELEY      D5
 
-#define I2C_SCL     D1
-#define I2C_SDA     D2
+#define BTN_LEFT          D5
+#define BTN_RIGHT         D6
+#define BTN_CENTER        D7
+#define BTN_BACK          D8
+
+#define I2C_SCL           D1
+#define I2C_SDA           D2
 
 char* boot_mode           = ""; // if setting don't forgot remove.
 char* directory           = ""; // directory in current
 char* select_current      = "Select timer"; // first select
 
 /* Setting Timer */
+int eeprom_addr_h         = 1;
+int eeprom_addr_after_h   = 2;
+int eeprom_addr_m         = 3;
+int eeprom_addr_after_m   = 4;
+
 int reboot_time           = 6; // second
 int move_right            = 0;
 int hour                  = 0;
 int minute                = 0;
+int after_hour            = 0;
+int after_minute          = 0;
 char display_h[2];
+char display_after_h[2];
 char display_m[2];
+char display_after_m[2];
 char display_reboot[2];
 
 /* Dht22  */
@@ -93,6 +104,9 @@ void setup()
   } else {
 
     pinMode(BTN_LEFT,   OUTPUT);
+    pinMode(ACTIVE_RELEY, OUTPUT);
+
+    digitalWrite(ACTIVE_RELEY, 1);
 
     Serial.println();
     Serial.println();
@@ -113,9 +127,7 @@ void setup()
     
     EEPROM.begin(512);
     dht.begin();
-    delay(100);
     lcd.begin();
-    delay(100);
     RTC.begin();
   //  RTC.adjust(DateTime(__DATE__, __TIME__));
 
@@ -277,13 +289,30 @@ void FUNCTION_WRITE_EEPROM() {
 }
 
 void FUNCTION_READ_EEPROM() {
+
+  DateTime now = RTC.now();
+
+  if (EEPROM.read(eeprom_addr_h) > 0) {
+    if (EEPROM.read(eeprom_addr_h) == now.hour() && EEPROM.read(eeprom_addr_m) == now.minute()) {
+      digitalWrite(ACTIVE_RELEY, 0);
+    }
+    if (EEPROM.read(eeprom_addr_after_h) == now.hour() && EEPROM.read(eeprom_addr_after_m) == now.minute()) {
+      digitalWrite(ACTIVE_RELEY, 1);
+    }
+  }
+
   Serial.println();
   Serial.print("Read eeprom");
   Serial.println();
   Serial.print("Hour : ");
-  Serial.println(EEPROM.read(256));
-  Serial.print("Minute : ");
-  Serial.println(EEPROM.read(257));
+  Serial.print(EEPROM.read(eeprom_addr_h));
+  Serial.print("-");
+  Serial.println(EEPROM.read(eeprom_addr_m));
+
+  Serial.print("Hour : ");
+  Serial.print(EEPROM.read(eeprom_addr_after_h));
+  Serial.print("-");
+  Serial.println(EEPROM.read(eeprom_addr_after_m));
 }
 
 void FUNCTION_NORMAL() {
@@ -341,6 +370,120 @@ void FUNCTION_SETTING() {
 
 }
 
+void FUNCTION_SET_TIMER_HOUR() {
+  lcd.setCursor(0,0);
+  lcd.print("Set Timer (24 Hour)");
+  lcd.setCursor(0,1);
+  lcd.print(" Day   : every day");
+  lcd.setCursor(0,2);
+  lcd.write(4);
+
+  lcd.print("Hour  : ");
+  sprintf(display_h, "%d", hour);
+  lcd.print(display_h);
+  lcd.print("-");
+  sprintf(display_after_h, "%d", after_hour);
+  lcd.print(display_after_h);
+
+  lcd.setCursor(0,3);
+  lcd.print(" Minute: ");
+  sprintf(display_m, "%d", minute);
+  lcd.print(display_m);
+  lcd.print("-");
+  sprintf(display_after_m, "%d", after_minute);
+  lcd.print(display_after_m);
+
+  if (minute >= 10 && after_minute < 10) {
+    lcd.print("   ");
+  }
+
+  if (minute >= 10 && after_minute >= 10) {
+    lcd.print("  ");
+  }
+
+  if (minute < 10 && after_minute < 10) {
+    lcd.print("    ");
+  }
+
+  lcd.print("Save");
+}
+
+void FUNCTION_SET_TIMER_MINUTE() {
+  lcd.setCursor(0,0);
+  lcd.print("Set Timer (24 Hour)");
+  lcd.setCursor(0,1);
+  lcd.print(" Day   : every day");
+  lcd.setCursor(0,2);
+  
+  lcd.print(" Hour  : ");
+  sprintf(display_h, "%d", hour);
+  lcd.print(display_h);
+  lcd.print("-");
+  sprintf(display_after_h, "%d", after_hour);
+  lcd.print(display_after_h);
+
+  lcd.setCursor(0,3);
+  lcd.write(4);
+  lcd.print("Minute: ");
+  sprintf(display_m, "%d", minute);
+  lcd.print(display_m);
+  lcd.print("-");
+  sprintf(display_after_m, "%d", after_minute);
+  lcd.print(display_after_m);
+  
+  if (minute >= 10 && after_minute < 10) {
+    lcd.print("   ");
+  }
+
+  if (minute >= 10 && after_minute >= 10) {
+    lcd.print("  ");
+  }
+
+  if (minute < 10 && after_minute < 10) {
+    lcd.print("    ");
+  }
+
+  lcd.print("Save");
+}
+
+void FUNCTION_SET_TIMER_SAVE() {
+  lcd.setCursor(0,0);
+  lcd.print("Set Timer (24 Hour)");
+  lcd.setCursor(0,1);
+  lcd.print(" Day   : every day");
+  lcd.setCursor(0,2);
+
+  lcd.print(" Hour  : ");
+  sprintf(display_h, "%d", hour);
+  lcd.print(display_h);
+  lcd.print("-");
+  sprintf(display_after_h, "%d", after_hour);
+  lcd.print(display_after_h);
+
+  lcd.setCursor(0,3);
+  lcd.print(" Minute: ");
+  sprintf(display_m, "%d", minute);
+  lcd.print(display_m);
+  lcd.print("-");
+  sprintf(display_after_m, "%d", after_minute);
+  lcd.print(display_after_m);
+  
+  if (minute >= 10 && after_minute < 10) {
+    lcd.print("   ");
+  }
+
+  if (minute >= 10 && after_minute >= 10) {
+    lcd.print(" ");
+  }
+
+  if (minute < 10 && after_minute < 10) {
+    lcd.print("   ");
+  }
+
+  lcd.write(4);
+  lcd.print("Save");
+}
+
 void FUNCTION_SET_TIMER() {
   directory = "root/set_timer";
   
@@ -349,76 +492,23 @@ void FUNCTION_SET_TIMER() {
   } else {
 
     if (select_current == "Select hour" || select_current == "Set hour is active.") {
-      lcd.setCursor(0,0);
-      lcd.print("Set Timer (24 Hour)");
-      lcd.setCursor(0,1);
-      lcd.print("  Day    : auto");
-      lcd.setCursor(0,2);
-      lcd.write(4);
-      lcd.print(" Hour   : ");
-      sprintf(display_h, "%d", hour);
-      lcd.print(display_h);
-      lcd.setCursor(0,3);
-      lcd.print("  Minute : ");
-      sprintf(display_m, "%d", minute);
-      lcd.print(display_m);
+      FUNCTION_SET_TIMER_HOUR();
+    }
 
-      if (minute > 9) {
-        lcd.print("   ");
-      } else {
-        lcd.print("    ");
-      }
-
-      lcd.print("Save");
+    if (select_current == "Set after hour is active.") {
+      FUNCTION_SET_TIMER_HOUR();
     }
 
     if (select_current == "Select minute" || select_current == "Set minute is active.") {
-      lcd.setCursor(0,0);
-      lcd.print("Set Timer (24 Hour)");
-      lcd.setCursor(0,1);
-      lcd.print("  Day    : auto");
-      lcd.setCursor(0,2);
-      lcd.print("  Hour   : ");
-      sprintf(display_h, "%d", hour);
-      lcd.print(display_h);
-      lcd.setCursor(0,3);
-      lcd.write(4);
-      lcd.print(" Minute : ");
-      sprintf(display_m, "%d", minute);
-      lcd.print(display_m);
-      
-      if (minute > 9) {
-        lcd.print("   ");
-      } else {
-        lcd.print("    ");
-      }
-      
-      lcd.print("Save");
+      FUNCTION_SET_TIMER_MINUTE();
+    }
+
+    if (select_current == "Set after minute is active.") {
+      FUNCTION_SET_TIMER_MINUTE();
     }
 
     if (select_current == "Select save") {
-      lcd.setCursor(0,0);
-      lcd.print("Set Timer (24 Hour)");
-      lcd.setCursor(0,1);
-      lcd.print("  Day    : auto");
-      lcd.setCursor(0,2);
-      lcd.print("  Hour   : ");
-      sprintf(display_h, "%d", hour);
-      lcd.print(display_h);
-      lcd.setCursor(0,3);
-      lcd.print("  Minute : ");
-      sprintf(display_m, "%d", minute);
-      lcd.print(display_m);
-      
-      if (minute > 9) {
-        lcd.print("  ");
-      } else {
-        lcd.print("  ");
-      }
-
-      lcd.write(4);
-      lcd.print(" Save");
-      Serial.println("test");
+      FUNCTION_SET_TIMER_SAVE();
     }
 
   } // End check reboot time
@@ -446,10 +536,24 @@ void BTN_STATE() {
           }
         }
 
+        if (select_current == "Set after hour is active.") {
+          after_hour--;
+          if (after_hour < 0) {
+              after_hour = 23;
+          }
+        }
+
         if (select_current == "Set minute is active.") {
           minute--;
           if (minute < 0) {
               minute = 59;
+          }
+        }
+
+        if (select_current == "Set after minute is active.") {
+          after_minute--;
+          if (after_minute < 0) {
+              after_minute = 59;
           }
         }
 
@@ -476,19 +580,21 @@ void BTN_STATE() {
       if (directory == "root/set_timer") {
         
         if (select_current != "Set hour is active." && select_current != "Set minute is active.") {
-          move_right++;
+          if (select_current != "Set after hour is active." && select_current != "Set after minute is active.") {
+            move_right++;
 
-          if (move_right == 3) {
-              select_current = "Select hour";
-              move_right = 0;
-          }
+            if (move_right == 3) {
+                select_current = "Select hour";
+                move_right = 0;
+            }
 
-          if (move_right == 2) {
-              select_current = "Select save";
-          }
+            if (move_right == 2) {
+                select_current = "Select save";
+            }
 
-          if (move_right == 1) {
-              select_current = "Select minute";
+            if (move_right == 1) {
+                select_current = "Select minute";
+            }
           }
         }
 
@@ -499,10 +605,24 @@ void BTN_STATE() {
           }
         }
 
+        if (select_current == "Set after hour is active.") {
+          after_hour++;
+          if (after_hour > 23) {
+              after_hour = 0;
+          }
+        }
+
         if (select_current == "Set minute is active.") {
           minute++;
           if (minute > 59) {
               minute = 0;
+          }
+        }
+
+        if (select_current == "Set after minute is active.") {
+          after_minute++;
+          if (after_minute > 59) {
+              after_minute = 0;
           }
         }
 
@@ -528,6 +648,14 @@ void BTN_STATE() {
       
       if (directory == "root/set_timer") {
 
+        if (select_current == "Set hour is active.") {
+          select_current = "Set after hour is active.";
+        }
+
+        if (select_current == "Set minute is active.") {
+          select_current = "Set after minute is active.";
+        }
+
         if (select_current == "Select hour") {
           select_current = "Set hour is active.";
         }
@@ -537,12 +665,32 @@ void BTN_STATE() {
         }
 
         if (select_current == "Select save") {
-          select_current = "Save data to eeprom.";
-          Serial.println("Write");
-          EEPROM.write(256, hour);
-          EEPROM.write(257, minute);
-          EEPROM.commit();
-          FUNCTION_WRITE_EEPROM();
+
+          if (after_hour < hour) {
+            lcd.clear();
+            move_right = 0;
+            select_current = "Select hour";
+            FUNCTION_SET_TIMER_HOUR();
+          } else {
+            if (after_minute < minute) {
+              lcd.clear();
+              move_right = 1;
+              select_current = "Select minute";
+              FUNCTION_SET_TIMER_MINUTE();
+            }
+          }
+
+          if (after_hour >= hour && after_minute >= minute) {
+            select_current = "Save data to eeprom.";
+            Serial.println("Write");
+            EEPROM.write(eeprom_addr_h, hour);
+            EEPROM.write(eeprom_addr_after_h, after_hour);
+            EEPROM.write(eeprom_addr_m, minute);
+            EEPROM.write(eeprom_addr_after_m, after_minute);
+            EEPROM.commit();
+            FUNCTION_WRITE_EEPROM();
+          }
+
         }
 
       }
@@ -577,7 +725,19 @@ void BTN_STATE() {
           FUNCTION_SET_TIMER();
         }
 
+        if (select_current == "Set after hour is active.") {
+          select_current = "Select hour";
+          lcd.clear();
+          FUNCTION_SET_TIMER();
+        }
+
         if (select_current == "Set minute is active.") {
+          select_current = "Select minute";
+          lcd.clear();
+          FUNCTION_SET_TIMER();
+        }
+
+        if (select_current == "Set after minute is active.") {
           select_current = "Select minute";
           lcd.clear();
           FUNCTION_SET_TIMER();

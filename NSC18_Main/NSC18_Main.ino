@@ -1,10 +1,11 @@
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
-#include "SPI.h"
+#include "LiquidCrystal_I2C.h"
+#include <SPI.h>
 #include "RTClib.h"
 #include "DHT.h"
 #include <ESP8266WiFi.h>
-#include "Esp.h"
+#include <Esp.h>
+#include <EEPROM.h>
 
 #define DHTPIN      D4
 #define DHTTYPE     DHT22
@@ -83,6 +84,7 @@ void setup()
     pinMode(BTN_CENTER, INPUT); // ENTER
     pinMode(BTN_BACK,   INPUT); // BACK
 
+    EEPROM.begin(512);
     lcd.begin();
     lcd.createChar(4, ICON_SELECT);
     lcd.clear();
@@ -108,7 +110,8 @@ void setup()
     Serial.println("WiFi connected");  
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
-  
+    
+    EEPROM.begin(512);
     dht.begin();
     delay(100);
     lcd.begin();
@@ -256,9 +259,39 @@ void DEBUG(float temp, float humid) {
   Serial.println(now.minute(), DEC);
 }
 
+void FUNCTION_WRITE_EEPROM() {
+  reboot_time--;
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Save success.");
+  lcd.setCursor(0,2);
+  lcd.print("Reboot in ");
+  sprintf(display_reboot, "%d", reboot_time);
+  lcd.print(display_reboot);
+  lcd.print(" second");
+  if (reboot_time == 0) {
+    lcd.clear();
+    Esp.reset();
+  }
+  delay(1000);
+}
+
+void FUNCTION_READ_EEPROM() {
+  Serial.println();
+  Serial.print("Read eeprom");
+  Serial.println();
+  Serial.print("Hour : ");
+  Serial.println(EEPROM.read(256));
+  Serial.print("Minute : ");
+  Serial.println(EEPROM.read(257));
+}
+
 void FUNCTION_NORMAL() {
+
   currentMillis = millis();
-   
+  
+  FUNCTION_READ_EEPROM();
+
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
 
@@ -294,23 +327,6 @@ void FUNCTION_NORMAL() {
     DEBUG(t, h);
 
   }
-}
-
-void FUNCTION_WRITE_EEPROM() {
-  reboot_time--;
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("Save sucess.");
-  lcd.setCursor(0,2);
-  lcd.print("Reboot in ");
-  sprintf(display_reboot, "%d", reboot_time);
-  lcd.print(display_reboot);
-  lcd.print(" second");
-  if (reboot_time == 0) {
-    lcd.clear();
-    Esp.reset();
-  }
-  delay(1000);
 }
 
 void FUNCTION_SETTING() {
@@ -522,6 +538,10 @@ void BTN_STATE() {
 
         if (select_current == "Select save") {
           select_current = "Save data to eeprom.";
+          Serial.println("Write");
+          EEPROM.write(256, hour);
+          EEPROM.write(257, minute);
+          EEPROM.commit();
           FUNCTION_WRITE_EEPROM();
         }
 

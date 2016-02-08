@@ -26,26 +26,29 @@ char* boot_mode           = ""; // if setting don't forgot remove.
 char* directory           = ""; // directory in current
 char* select_current      = "Select timer"; // first select
 
-/* Setting Timer */
-const unsigned int eeprom_addr_h         = 1;
-const unsigned int eeprom_addr_after_h   = 2;
-const unsigned int eeprom_addr_m         = 3;
-const unsigned int eeprom_addr_after_m   = 4;
+struct Setting_timer
+{
+  int eeprom_addr_h         = 100;
+  int eeprom_addr_after_h   = 101;
+  int eeprom_addr_m         = 102;
+  int eeprom_addr_after_m   = 103;
 
-unsigned int reboot_time           = 6; // second
-unsigned int move_right            = 0;
-unsigned int hour                  = 0;
-unsigned int minute                = 0;
-unsigned int after_hour            = 0;
-unsigned int after_minute          = 0;
-char display_h[2];
-char display_after_h[2];
-char display_m[2];
-char display_after_m[2];
-char display_reboot[2];
+  int reboot_time                 = 6; // second
+  int move_right                  = 0;
+  int hour                        = 0;
+  int minute                      = 0;
+  int after_hour                  = 0;
+  int after_minute                = 0;
+  char display_h[2];
+  char display_after_h[2];
+  char display_m[2];
+  char display_after_m[2];
+  char display_reboot[2];
+
+}setting_t;
 
 /* Dht22  */
-unsigned int dht_counting_fail     = 0;
+int dht_counting_fail             = 0;
 
 /* detect button */
 char* run_left            = "";
@@ -53,18 +56,9 @@ char* run_right           = "";
 char* run_center          = "";
 char* run_back            = "";
 
-// const char* ssid          = "apple";
-// const char* password      = "0845178386";
-
-const char* ssid          = "";
-const char* password      = "";
-
-// const char* ssid          = "CMMC-MEMBER";
-// const char* password      = "devicenetwork";
-
 const char* host          = "api.thingspeak.com";
 const char* writeAPIKey   = "2DTO3Y4QC93L2ZR9";
-const unsigned int httpPort        = 80;
+int httpPort        = 80;
 
 /*=== WiFiAccessPoint ===*/
 const char* ssidAP = "NSC18-Main";
@@ -76,7 +70,7 @@ const char* ap_gateway[4] = {"192", "168", "0", "1"};
 String http_ssid = "";
 String http_pass = "";
 
-uint8_t state_internet = 0;
+int state_internet = 0;
 
 /*=======================*/
 
@@ -122,10 +116,7 @@ void autoConnect() {
 
   int address_eeprom = 0;
 
-  ssid = http_ssid.c_str();
-  password = http_pass.c_str();
-
-  WiFi.begin(ssid, password);
+  WiFi.begin(http_ssid.c_str(), http_pass.c_str());
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -135,22 +126,22 @@ void autoConnect() {
   Serial.println(WiFi.localIP());
 
   Serial.print("eeprom ssid : ");
-  for (int i = 0; i < strlen(ssid); i++) {
-    EEPROM.write(address_eeprom, ssid[i]);
+  for (int i = 0; i < http_ssid.length(); i++) {
+    EEPROM.write(address_eeprom, http_ssid[i]);
     address_eeprom++;
-    Serial.print(ssid[i]);
+    Serial.print(http_ssid[i]);
   }
 
   Serial.println();
   Serial.print("eeprom pass : ");
-  for (int j = 0; j < strlen(password); j++) {
-    EEPROM.write(address_eeprom, password[j]);
+  for (int j = 0; j < http_pass.length(); j++) {
+    EEPROM.write(address_eeprom, http_pass[j]);
     address_eeprom++;
-    Serial.print(password[j]);
+    Serial.print(http_pass[j]);
   }
 
-  EEPROM.write(256, strlen(ssid));
-  EEPROM.write(257, strlen(password));
+  EEPROM.write(256, http_ssid.length());
+  EEPROM.write(257, http_pass.length());
   EEPROM.commit();
   Esp.reset();
 
@@ -330,16 +321,22 @@ void setup()
 
     if (digitalRead(BTN_RIGHT) == 1) {
       boot_mode = "setting wifi";
+
+      pinMode(BTN_LEFT,   OUTPUT);
+      pinMode(BTN_RIGHT,  OUTPUT);
+      digitalWrite(ACTIVE_RELEY, 1);
+
       EEPROM.begin(512);
       lcd.begin();
       lcd.clear();
-      
+
       Serial.println();
       Serial.println();
       Serial.println("Boot setting wifi.");
-      pinMode(BTN_LEFT,   OUTPUT);
-      pinMode(BTN_RIGHT,  OUTPUT);
-      
+
+      lcd.setCursor(0, 0);
+      lcd.print("ip : 192.168.0.100");
+
       wifi_ap();
       webserver_config();
 
@@ -561,16 +558,16 @@ void DEBUG(float temp, float humid) {
 }
 
 void FUNCTION_WRITE_EEPROM() {
-  reboot_time--;
+  setting_t.reboot_time--;
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("Save success.");
   lcd.setCursor(0,2);
   lcd.print("Reboot in ");
-  sprintf(display_reboot, "%d", reboot_time);
-  lcd.print(display_reboot);
+  sprintf(setting_t.display_reboot, "%d", setting_t.reboot_time);
+  lcd.print(setting_t.display_reboot);
   lcd.print(" second");
-  if (reboot_time == 0) {
+  if (setting_t.reboot_time == 0) {
     lcd.clear();
     Esp.reset();
   }
@@ -581,11 +578,11 @@ void FUNCTION_READ_EEPROM() {
 
   DateTime now = RTC.now();
 
-  if (EEPROM.read(eeprom_addr_h) > 0) {
-    if (EEPROM.read(eeprom_addr_h) == now.hour() && EEPROM.read(eeprom_addr_m) == now.minute()) {
+  if (EEPROM.read(setting_t.eeprom_addr_h) > 0) {
+    if (EEPROM.read(setting_t.eeprom_addr_h) == now.hour() && EEPROM.read(setting_t.eeprom_addr_m) == now.minute()) {
       digitalWrite(ACTIVE_RELEY, 0);
     }
-    if (EEPROM.read(eeprom_addr_after_h) == now.hour() && EEPROM.read(eeprom_addr_after_m) == now.minute()) {
+    if (EEPROM.read(setting_t.eeprom_addr_after_h) == now.hour() && EEPROM.read(setting_t.eeprom_addr_after_m) == now.minute()) {
       digitalWrite(ACTIVE_RELEY, 1);
     }
   }
@@ -594,14 +591,14 @@ void FUNCTION_READ_EEPROM() {
   Serial.print("Read eeprom");
   Serial.println();
   Serial.print("Hour : ");
-  Serial.print(EEPROM.read(eeprom_addr_h));
+  Serial.print(EEPROM.read(setting_t.eeprom_addr_h));
   Serial.print("-");
-  Serial.println(EEPROM.read(eeprom_addr_m));
+  Serial.println(EEPROM.read(setting_t.eeprom_addr_m));
 
   Serial.print("Hour : ");
-  Serial.print(EEPROM.read(eeprom_addr_after_h));
+  Serial.print(EEPROM.read(setting_t.eeprom_addr_after_h));
   Serial.print("-");
-  Serial.println(EEPROM.read(eeprom_addr_after_m));
+  Serial.println(EEPROM.read(setting_t.eeprom_addr_after_m));
 }
 
 void FUNCTION_NORMAL() {
@@ -668,29 +665,29 @@ void FUNCTION_SET_TIMER_HOUR() {
   lcd.write(4);
 
   lcd.print("Hour  : ");
-  sprintf(display_h, "%d", hour);
-  lcd.print(display_h);
+  sprintf(setting_t.display_h, "%d", setting_t.hour);
+  lcd.print(setting_t.display_h);
   lcd.print("-");
-  sprintf(display_after_h, "%d", after_hour);
-  lcd.print(display_after_h);
+  sprintf(setting_t.display_after_h, "%d", setting_t.after_hour);
+  lcd.print(setting_t.display_after_h);
 
   lcd.setCursor(0,3);
   lcd.print(" Minute: ");
-  sprintf(display_m, "%d", minute);
-  lcd.print(display_m);
+  sprintf(setting_t.display_m, "%d", setting_t.minute);
+  lcd.print(setting_t.display_m);
   lcd.print("-");
-  sprintf(display_after_m, "%d", after_minute);
-  lcd.print(display_after_m);
+  sprintf(setting_t.display_after_m, "%d", setting_t.after_minute);
+  lcd.print(setting_t.display_after_m);
 
-  if (minute >= 10 && after_minute < 10) {
+  if (setting_t.minute >= 10 && setting_t.after_minute < 10) {
     lcd.print("   ");
   }
 
-  if (minute >= 10 && after_minute >= 10) {
+  if (setting_t.minute >= 10 && setting_t.after_minute >= 10) {
     lcd.print("  ");
   }
 
-  if (minute < 10 && after_minute < 10) {
+  if (setting_t.minute < 10 && setting_t.after_minute < 10) {
     lcd.print("    ");
   }
 
@@ -705,30 +702,30 @@ void FUNCTION_SET_TIMER_MINUTE() {
   lcd.setCursor(0,2);
   
   lcd.print(" Hour  : ");
-  sprintf(display_h, "%d", hour);
-  lcd.print(display_h);
+  sprintf(setting_t.display_h, "%d", setting_t.hour);
+  lcd.print(setting_t.display_h);
   lcd.print("-");
-  sprintf(display_after_h, "%d", after_hour);
-  lcd.print(display_after_h);
+  sprintf(setting_t.display_after_h, "%d", setting_t.after_hour);
+  lcd.print(setting_t.display_after_h);
 
   lcd.setCursor(0,3);
   lcd.write(4);
   lcd.print("Minute: ");
-  sprintf(display_m, "%d", minute);
-  lcd.print(display_m);
+  sprintf(setting_t.display_m, "%d", setting_t.minute);
+  lcd.print(setting_t.display_m);
   lcd.print("-");
-  sprintf(display_after_m, "%d", after_minute);
-  lcd.print(display_after_m);
+  sprintf(setting_t.display_after_m, "%d", setting_t.after_minute);
+  lcd.print(setting_t.display_after_m);
   
-  if (minute >= 10 && after_minute < 10) {
+  if (setting_t.minute >= 10 && setting_t.after_minute < 10) {
     lcd.print("   ");
   }
 
-  if (minute >= 10 && after_minute >= 10) {
+  if (setting_t.minute >= 10 && setting_t.after_minute >= 10) {
     lcd.print("  ");
   }
 
-  if (minute < 10 && after_minute < 10) {
+  if (setting_t.minute < 10 && setting_t.after_minute < 10) {
     lcd.print("    ");
   }
 
@@ -743,29 +740,29 @@ void FUNCTION_SET_TIMER_SAVE() {
   lcd.setCursor(0,2);
 
   lcd.print(" Hour  : ");
-  sprintf(display_h, "%d", hour);
-  lcd.print(display_h);
+  sprintf(setting_t.display_h, "%d", setting_t.hour);
+  lcd.print(setting_t.display_h);
   lcd.print("-");
-  sprintf(display_after_h, "%d", after_hour);
-  lcd.print(display_after_h);
+  sprintf(setting_t.display_after_h, "%d", setting_t.after_hour);
+  lcd.print(setting_t.display_after_h);
 
   lcd.setCursor(0,3);
   lcd.print(" Minute: ");
-  sprintf(display_m, "%d", minute);
-  lcd.print(display_m);
+  sprintf(setting_t.display_m, "%d", setting_t.minute);
+  lcd.print(setting_t.display_m);
   lcd.print("-");
-  sprintf(display_after_m, "%d", after_minute);
-  lcd.print(display_after_m);
+  sprintf(setting_t.display_after_m, "%d", setting_t.after_minute);
+  lcd.print(setting_t.display_after_m);
   
-  if (minute >= 10 && after_minute < 10) {
+  if (setting_t.minute >= 10 && setting_t.after_minute < 10) {
     lcd.print("   ");
   }
 
-  if (minute >= 10 && after_minute >= 10) {
+  if (setting_t.minute >= 10 && setting_t.after_minute >= 10) {
     lcd.print(" ");
   }
 
-  if (minute < 10 && after_minute < 10) {
+  if (setting_t.minute < 10 && setting_t.after_minute < 10) {
     lcd.print("   ");
   }
 
@@ -776,7 +773,7 @@ void FUNCTION_SET_TIMER_SAVE() {
 void FUNCTION_SET_TIMER() {
   directory = "root/set_timer";
   
-  if (reboot_time < 6) {
+  if (setting_t.reboot_time < 6) {
     FUNCTION_WRITE_EEPROM();
   } else {
 
@@ -819,30 +816,30 @@ void BTN_STATE() {
       if (directory == "root/set_timer") {
         
         if (select_current == "Set hour is active.") {
-          hour--;
-          if (hour < 0) {
-              hour = 23;
+          setting_t.hour--;
+          if (setting_t.hour < 0) {
+              setting_t.hour = 23;
           }
         }
 
         if (select_current == "Set after hour is active.") {
-          after_hour--;
-          if (after_hour < 0) {
-              after_hour = 23;
+          setting_t.after_hour--;
+          if (setting_t.after_hour < 0) {
+              setting_t.after_hour = 23;
           }
         }
 
         if (select_current == "Set minute is active.") {
-          minute--;
-          if (minute < 0) {
-              minute = 59;
+          setting_t.minute--;
+          if (setting_t.minute < 0) {
+              setting_t.minute = 59;
           }
         }
 
         if (select_current == "Set after minute is active.") {
-          after_minute--;
-          if (after_minute < 0) {
-              after_minute = 59;
+          setting_t.after_minute--;
+          if (setting_t.after_minute < 0) {
+              setting_t.after_minute = 59;
           }
         }
 
@@ -870,48 +867,48 @@ void BTN_STATE() {
         
         if (select_current != "Set hour is active." && select_current != "Set minute is active.") {
           if (select_current != "Set after hour is active." && select_current != "Set after minute is active.") {
-            move_right++;
+            setting_t.move_right++;
 
-            if (move_right == 3) {
+            if (setting_t.move_right == 3) {
                 select_current = "Select hour";
-                move_right = 0;
+                setting_t.move_right = 0;
             }
 
-            if (move_right == 2) {
+            if (setting_t.move_right == 2) {
                 select_current = "Select save";
             }
 
-            if (move_right == 1) {
+            if (setting_t.move_right == 1) {
                 select_current = "Select minute";
             }
           }
         }
 
         if (select_current == "Set hour is active.") {
-          hour++;
-          if (hour > 23) {
-              hour = 0;
+          setting_t.hour++;
+          if (setting_t.hour > 23) {
+              setting_t.hour = 0;
           }
         }
 
         if (select_current == "Set after hour is active.") {
-          after_hour++;
-          if (after_hour > 23) {
-              after_hour = 0;
+          setting_t.after_hour++;
+          if (setting_t.after_hour > 23) {
+              setting_t.after_hour = 0;
           }
         }
 
         if (select_current == "Set minute is active.") {
-          minute++;
-          if (minute > 59) {
-              minute = 0;
+          setting_t.minute++;
+          if (setting_t.minute > 59) {
+              setting_t.minute = 0;
           }
         }
 
         if (select_current == "Set after minute is active.") {
-          after_minute++;
-          if (after_minute > 59) {
-              after_minute = 0;
+          setting_t.after_minute++;
+          if (setting_t.after_minute > 59) {
+              setting_t.after_minute = 0;
           }
         }
 
@@ -955,27 +952,27 @@ void BTN_STATE() {
 
         if (select_current == "Select save") {
 
-          if (after_hour < hour) {
+          if (setting_t.after_hour < setting_t.hour) {
             lcd.clear();
-            move_right = 0;
+            setting_t.move_right = 0;
             select_current = "Select hour";
             FUNCTION_SET_TIMER_HOUR();
           } else {
-            if (after_minute < minute) {
+            if (setting_t.after_minute < setting_t.minute) {
               lcd.clear();
-              move_right = 1;
+              setting_t.move_right = 1;
               select_current = "Select minute";
               FUNCTION_SET_TIMER_MINUTE();
             }
           }
 
-          if (after_hour >= hour && after_minute >= minute) {
+          if (setting_t.after_hour >= setting_t.hour && setting_t.after_minute >= setting_t.minute) {
             select_current = "Save data to eeprom.";
             Serial.println("Write");
-            EEPROM.write(eeprom_addr_h, hour);
-            EEPROM.write(eeprom_addr_after_h, after_hour);
-            EEPROM.write(eeprom_addr_m, minute);
-            EEPROM.write(eeprom_addr_after_m, after_minute);
+            EEPROM.write(setting_t.eeprom_addr_h, setting_t.hour);
+            EEPROM.write(setting_t.eeprom_addr_after_h, setting_t.after_hour);
+            EEPROM.write(setting_t.eeprom_addr_m, setting_t.minute);
+            EEPROM.write(setting_t.eeprom_addr_after_m, setting_t.after_minute);
             EEPROM.commit();
             FUNCTION_WRITE_EEPROM();
           }
@@ -1053,7 +1050,7 @@ void loop() {
 
     // get_heap();
 
-    if (reboot_time < 6) {
+    if (setting_t.reboot_time < 6) {
       FUNCTION_WRITE_EEPROM();
     } else {
 
@@ -1072,7 +1069,7 @@ void loop() {
     Serial.print("select current : ");
     Serial.println(select_current);
     Serial.print("move right : ");
-    Serial.println(move_right);
+    Serial.println(setting_t.move_right);
     Serial.println("==============");
 
   } else {

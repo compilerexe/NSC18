@@ -9,22 +9,24 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 
-#define DHTPIN            D4
-#define DHTTYPE           DHT22
+#define disk1               0x50 //Address of 24LC256 eeprom chip
 
-#define ACTIVE_RELEY      D5
+#define DHTPIN              D4
+#define DHTTYPE             DHT22
 
-#define BTN_LEFT          D5
-#define BTN_RIGHT         D6
-#define BTN_CENTER        D7
-#define BTN_BACK          D8
+#define ACTIVE_RELEY        D5
 
-#define I2C_SCL           D1
-#define I2C_SDA           D2
+#define BTN_LEFT            D5
+#define BTN_RIGHT           D6
+#define BTN_CENTER          D7
+#define BTN_BACK            D8
 
-char* boot_mode           = ""; // if setting don't forgot remove.
-char* directory           = ""; // directory in current
-char* select_current      = "Select timer"; // first select
+#define I2C_SCL             D1
+#define I2C_SDA             D2
+
+char* boot_mode             = ""; // if setting don't forgot remove.
+char* directory             = ""; // directory in current
+char* select_current        = "Select timer"; // first select
 
 struct Setting_timer
 {
@@ -33,12 +35,12 @@ struct Setting_timer
   int eeprom_addr_m         = 102;
   int eeprom_addr_after_m   = 103;
 
-  int reboot_time                 = 6; // second
-  int move_right                  = 0;
-  int hour                        = 0;
-  int minute                      = 0;
-  int after_hour                  = 0;
-  int after_minute                = 0;
+  int reboot_time           = 6; // second
+  int move_right            = 0;
+  int hour                  = 0;
+  int minute                = 0;
+  int after_hour            = 0;
+  int after_minute          = 0;
   char display_h[2];
   char display_after_h[2];
   char display_m[2];
@@ -47,30 +49,34 @@ struct Setting_timer
 
 }setting_t;
 
+int addr_eeprom_wifi        = 0;
+int addr_length_ssid        = 256;
+int addr_length_pass        = 257;
+
 /* Dht22  */
-int dht_counting_fail             = 0;
+int dht_counting_fail       = 0;
 
 /* detect button */
-char* run_left            = "";
-char* run_right           = "";
-char* run_center          = "";
-char* run_back            = "";
+char* run_left              = "";
+char* run_right             = "";
+char* run_center            = "";
+char* run_back              = "";
 
-const char* host          = "api.thingspeak.com";
-const char* writeAPIKey   = "2DTO3Y4QC93L2ZR9";
+const char* host            = "api.thingspeak.com";
+const char* writeAPIKey     = "2DTO3Y4QC93L2ZR9";
 int httpPort        = 80;
 
 /*=== WiFiAccessPoint ===*/
-const char* ssidAP = "NSC18-Main";
-const char* ssidPass = "";
-const char* ap_ip[4] = {"192", "168", "0", "100"};
-const char* ap_subnet[4] = {"255", "255", "255", "0"};
-const char* ap_gateway[4] = {"192", "168", "0", "1"};
+const char* ssidAP          = "NSC18-Main";
+const char* ssidPass        = "";
+const char* ap_ip[4]        = {"192", "168", "0", "100"};
+const char* ap_subnet[4]    = {"255", "255", "255", "0"};
+const char* ap_gateway[4]   = {"192", "168", "0", "1"};
 
-String http_ssid = "";
-String http_pass = "";
+String http_ssid            = "";
+String http_pass            = "";
 
-int state_internet = 0;
+int state_internet          = 0;
 
 /*=======================*/
 
@@ -91,6 +97,33 @@ byte ICON_TIME[8] {B11111,B11001,B11001,B01110,B01110,B10011,B10011,B11111};
 byte ICON_TEMP[8] {B00100,B01010,B01010,B01110,B01110,B11111,B11111,B01110};
 byte ICON_HUMID[8] {B00100,B00100,B01010,B01010,B10001,B10001,B10001,B01110};
 byte ICON_SELECT[8] {B00100,B00110,B00111,B11111,B11111,B00111,B00110,B00100};
+
+void writeEEPROM(int device_address, unsigned int eeprom_address, byte data ) 
+{
+  Wire.beginTransmission(device_address);
+  Wire.write((int)(eeprom_address >> 8));   // MSB
+  Wire.write((int)(eeprom_address & 0xFF)); // LSB
+  Wire.write(data);
+  Wire.endTransmission();
+ 
+  delay(5);
+}
+ 
+byte readEEPROM(int device_address, unsigned int eeprom_address ) 
+{
+  byte rdata = 0xFF;
+ 
+  Wire.beginTransmission(device_address);
+  Wire.write((int)(eeprom_address >> 8));   // MSB
+  Wire.write((int)(eeprom_address & 0xFF)); // LSB
+  Wire.endTransmission();
+ 
+  Wire.requestFrom(device_address,1);
+ 
+  if (Wire.available()) rdata = Wire.read();
+ 
+  return rdata;
+}
 
 void wifi_ap() {
   
@@ -114,8 +147,6 @@ void wifi_ap() {
 
 void autoConnect() {
 
-  int address_eeprom = 0;
-
   WiFi.begin(http_ssid.c_str(), http_pass.c_str());
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -127,22 +158,25 @@ void autoConnect() {
 
   Serial.print("eeprom ssid : ");
   for (int i = 0; i < http_ssid.length(); i++) {
-    EEPROM.write(address_eeprom, http_ssid[i]);
-    address_eeprom++;
+
+    writeEEPROM(disk1, addr_eeprom_wifi, http_ssid[i]);
+
+    addr_eeprom_wifi++;
     Serial.print(http_ssid[i]);
   }
 
   Serial.println();
   Serial.print("eeprom pass : ");
   for (int j = 0; j < http_pass.length(); j++) {
-    EEPROM.write(address_eeprom, http_pass[j]);
-    address_eeprom++;
+
+    writeEEPROM(disk1, addr_eeprom_wifi, http_pass[j]);
+
+    addr_eeprom_wifi++;
     Serial.print(http_pass[j]);
   }
 
-  EEPROM.write(256, http_ssid.length());
-  EEPROM.write(257, http_pass.length());
-  EEPROM.commit();
+  writeEEPROM(disk1, addr_length_ssid, http_ssid.length());
+  writeEEPROM(disk1, addr_length_pass, http_pass.length());
   Esp.reset();
 
 }
@@ -303,6 +337,10 @@ void setup()
   pinMode(BTN_LEFT,  INPUT);  // detect boot
   pinMode(BTN_RIGHT, INPUT); // detect boot setting wifi
 
+  Wire.begin();
+  lcd.begin();
+  lcd.clear();
+
   if (digitalRead(BTN_LEFT) == 1 || boot_mode == "setting") {
     boot_mode = "setting";
 
@@ -310,10 +348,8 @@ void setup()
     pinMode(BTN_CENTER, INPUT); // ENTER
     pinMode(BTN_BACK,   INPUT); // BACK
 
-    EEPROM.begin(512);
-    lcd.begin();
     lcd.createChar(4, ICON_SELECT);
-    lcd.clear();
+
     Serial.println();
     Serial.println();
     Serial.println("Boot setting");
@@ -326,23 +362,17 @@ void setup()
       pinMode(BTN_RIGHT,  OUTPUT);
       digitalWrite(ACTIVE_RELEY, 1);
 
-      EEPROM.begin(512);
-      lcd.begin();
-      lcd.clear();
-
       Serial.println();
       Serial.println();
       Serial.println("Boot setting wifi.");
 
       lcd.setCursor(0, 0);
-      lcd.print("ip : 192.168.0.100");
+      lcd.print("IP : 192.168.0.100");
 
       wifi_ap();
       webserver_config();
 
     } else {
-
-      EEPROM.begin(512);
 
       pinMode(BTN_LEFT,   OUTPUT);
       pinMode(BTN_RIGHT,  OUTPUT);
@@ -351,10 +381,8 @@ void setup()
 
       //=======
 
-      int len_ssid = EEPROM.read(256);
-      int len_pass = EEPROM.read(257);
-
-      int address_eeprom = 0;
+      int len_ssid = readEEPROM(disk1, addr_length_ssid);
+      int len_pass = readEEPROM(disk1, addr_length_pass);
 
       char buff_ssid[20];
       char buff_pass[20];
@@ -366,15 +394,15 @@ void setup()
 
       for (int i = 0; i < len_ssid; i++) {
 
-        int ascii_code = EEPROM.read(address_eeprom);
+        int ascii_code = readEEPROM(disk1, addr_eeprom_wifi);
         decryp_ssid += decryption_ascii(ascii_code);
-        address_eeprom++;
+        addr_eeprom_wifi++;
       }
 
       for (int j = 0; j < len_pass; j++) {
-        int ascii_code = EEPROM.read(address_eeprom);
+        int ascii_code = readEEPROM(disk1, addr_eeprom_wifi);
         decryp_pass += decryption_ascii(ascii_code);
-        address_eeprom++;
+        addr_eeprom_wifi++;
       }
 
       Serial.println();
@@ -578,27 +606,32 @@ void FUNCTION_READ_EEPROM() {
 
   DateTime now = RTC.now();
 
-  if (EEPROM.read(setting_t.eeprom_addr_h) > 0) {
-    if (EEPROM.read(setting_t.eeprom_addr_h) == now.hour() && EEPROM.read(setting_t.eeprom_addr_m) == now.minute()) {
+  if (readEEPROM(disk1, setting_t.eeprom_addr_h) > 0) {
+
+    if (readEEPROM(disk1, setting_t.eeprom_addr_h) == now.hour() && readEEPROM(disk1, setting_t.eeprom_addr_m) == now.minute()) {
       digitalWrite(ACTIVE_RELEY, 0);
     }
-    if (EEPROM.read(setting_t.eeprom_addr_after_h) == now.hour() && EEPROM.read(setting_t.eeprom_addr_after_m) == now.minute()) {
+
+
+
+    if (readEEPROM(disk1, setting_t.eeprom_addr_after_h) == now.hour() && readEEPROM(disk1, setting_t.eeprom_addr_after_m) == now.minute()) {
       digitalWrite(ACTIVE_RELEY, 1);
     }
+
   }
 
   Serial.println();
   Serial.print("Read eeprom");
   Serial.println();
   Serial.print("Hour : ");
-  Serial.print(EEPROM.read(setting_t.eeprom_addr_h));
+  Serial.print(readEEPROM(disk1,    setting_t.eeprom_addr_h));
   Serial.print("-");
-  Serial.println(EEPROM.read(setting_t.eeprom_addr_m));
+  Serial.println(readEEPROM(disk1,  setting_t.eeprom_addr_m));
 
   Serial.print("Hour : ");
-  Serial.print(EEPROM.read(setting_t.eeprom_addr_after_h));
+  Serial.print(readEEPROM(disk1,    setting_t.eeprom_addr_after_h));
   Serial.print("-");
-  Serial.println(EEPROM.read(setting_t.eeprom_addr_after_m));
+  Serial.println(readEEPROM(disk1,  setting_t.eeprom_addr_after_m));
 }
 
 void FUNCTION_NORMAL() {
@@ -718,6 +751,10 @@ void FUNCTION_SET_TIMER_MINUTE() {
   lcd.print(setting_t.display_after_m);
   
   if (setting_t.minute >= 10 && setting_t.after_minute < 10) {
+    lcd.print("   ");
+  }
+
+  if (setting_t.minute < 10 && setting_t.after_minute >= 10) {
     lcd.print("   ");
   }
 
@@ -969,11 +1006,17 @@ void BTN_STATE() {
           if (setting_t.after_hour >= setting_t.hour && setting_t.after_minute >= setting_t.minute) {
             select_current = "Save data to eeprom.";
             Serial.println("Write");
-            EEPROM.write(setting_t.eeprom_addr_h, setting_t.hour);
-            EEPROM.write(setting_t.eeprom_addr_after_h, setting_t.after_hour);
-            EEPROM.write(setting_t.eeprom_addr_m, setting_t.minute);
-            EEPROM.write(setting_t.eeprom_addr_after_m, setting_t.after_minute);
-            EEPROM.commit();
+
+            // EEPROM.write(setting_t.eeprom_addr_h, setting_t.hour);
+            // EEPROM.write(setting_t.eeprom_addr_after_h, setting_t.after_hour);
+            // EEPROM.write(setting_t.eeprom_addr_m, setting_t.minute);
+            // EEPROM.write(setting_t.eeprom_addr_after_m, setting_t.after_minute);
+
+            writeEEPROM(disk1, setting_t.eeprom_addr_h,         setting_t.hour);
+            writeEEPROM(disk1, setting_t.eeprom_addr_after_h,   setting_t.after_hour);
+            writeEEPROM(disk1, setting_t.eeprom_addr_m,         setting_t.minute);
+            writeEEPROM(disk1, setting_t.eeprom_addr_after_m,   setting_t.after_minute);
+
             FUNCTION_WRITE_EEPROM();
           }
 

@@ -27,7 +27,8 @@
 #define DHTPIN              D4
 #define DHTTYPE             DHT22
 
-#define ACTIVE_RELEY        D5
+#define ACTIVE_RELEY        D0
+#define PIN_SOIL            A0
 
 #define BTN_LEFT            D5
 #define BTN_RIGHT           D6
@@ -433,6 +434,7 @@ void setup()
 
       pinMode(BTN_LEFT,   OUTPUT);
       pinMode(BTN_RIGHT,  OUTPUT);
+      pinMode(ACTIVE_RELEY, OUTPUT);
       digitalWrite(ACTIVE_RELEY, 1);
 
       
@@ -449,8 +451,10 @@ void setup()
 
     } else {
 
-      pinMode(BTN_LEFT,   OUTPUT);
-      pinMode(BTN_RIGHT,  OUTPUT);
+      pinMode(BTN_LEFT,     OUTPUT);
+      pinMode(BTN_RIGHT,    OUTPUT);
+      pinMode(ACTIVE_RELEY, OUTPUT);
+      pinMode(PIN_SOIL,     INPUT);
 
       digitalWrite(ACTIVE_RELEY, 1);
 
@@ -1122,6 +1126,22 @@ void get_heap() {
   
 }
 
+void get_modeAuto() {
+  int get_mode = EEPROM.read(addr_mode_auto);
+  if (get_mode == 1) {
+    int soil_read = analogRead(A0);
+    if (soil_read > 300) {
+      digitalWrite(ACTIVE_RELEY, 0);
+    } else {
+      digitalWrite(ACTIVE_RELEY, 1);
+    }
+  }
+
+  if (get_mode == 0) {
+    digitalWrite(ACTIVE_RELEY, 1);
+  }
+}
+
 void loop() {
 
   if (boot_mode == "setting") {
@@ -1177,8 +1197,6 @@ void loop() {
           case 57 : memory_rx += "9"; break;
         }
 
-        DEBUG_PRINTLN(Serial.read());
-
         if (memory_rx.equals("1")) {
           DEBUG_PRINT("I have messages : ");
           DEBUG_PRINTLN("mode auto is online");
@@ -1208,6 +1226,8 @@ void loop() {
       } else {
 
         FUNCTION_NORMAL();
+
+        get_modeAuto();
 
       }
 

@@ -17,6 +17,11 @@
   #define DEBUG_PRINT(...) { DEBUG_PRINTER.print(__VA_ARGS__); }
   #define DEBUG_PRINTLN(...) { DEBUG_PRINTER.println(__VA_ARGS__); }
 
+#else
+
+  #define DEBUG_PRINT(...) {}
+  #define DEBUG_PRINTLN(...) {}
+
 #endif
 
 #define DHTPIN              D4
@@ -1157,8 +1162,6 @@ void loop() {
     } else {
       // get_heap();
 
-      FUNCTION_NORMAL();
-
       if (Serial.available() > 0) {
 
         switch (Serial.read()) {
@@ -1174,21 +1177,37 @@ void loop() {
           case 57 : memory_rx += "9"; break;
         }
 
-        if (memory_rx.equals("01")) {
+        DEBUG_PRINTLN(Serial.read());
+
+        if (memory_rx.equals("1")) {
           DEBUG_PRINT("I have messages : ");
           DEBUG_PRINTLN("mode auto is online");
-          EEPROM.write(addr_mode_auto, 01);
+          EEPROM.write(addr_mode_auto, 1);
           EEPROM.commit();
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("I have messages");
+          lcd.setCursor(0, 2);
+          lcd.print(" > Mode auto is online");
           Esp.reset(); 
         }
 
-        if (memory_rx.equals("10")) {
+        if (memory_rx.equals("0")) {
           DEBUG_PRINT("I have messages : ");
           DEBUG_PRINTLN("mode auto is offline");
-          EEPROM.write(addr_mode_auto, 10);
+          EEPROM.write(addr_mode_auto, 0);
           EEPROM.commit();
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("I have messages");
+          lcd.setCursor(0, 2);
+          lcd.print(" > Mode auto is offline");
           Esp.reset(); 
         }
+
+      } else {
+
+        FUNCTION_NORMAL();
 
       }
 

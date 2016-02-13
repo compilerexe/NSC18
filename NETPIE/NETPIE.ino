@@ -8,13 +8,18 @@
 #include <MicroGear.h>
 #include <Wire.h>
 
-#define DEBUG_CODE
+// #define DEBUG_CODE
 #define DEBUG_PRINTER Serial
 
 #ifdef DEBUG_CODE
 
-  #define DEBUG_PRINT(...) { DEBUG_PRINTER.print(__VA_ARGS__); }
-  #define DEBUG_PRINTLN(...) { DEBUG_PRINTER.println(__VA_ARGS__); }
+    #define DEBUG_PRINT(...) { DEBUG_PRINTER.print(__VA_ARGS__); }
+    #define DEBUG_PRINTLN(...) { DEBUG_PRINTER.println(__VA_ARGS__); }
+
+#else
+
+    #define DEBUG_PRINT(...) {}
+    #define DEBUG_PRINTLN(...) {}
 
 #endif
 
@@ -24,11 +29,11 @@
 #define ALIAS                   "NODEMCU"
 #define SCOPE                   "r:/NSC18/STATE,w:/NSC18/STATE,name:NODEMCU-CONTROL,chat:wwwNSC18"
 
-// const char* ssid                = "WIFI-MAXNET";
-// const char* password            = "macrol3ios";
+const char* ssid                = "WIFI-MAXNET";
+const char* password            = "macrol3ios";
 
-const char* ssid                = "CMMC-MEMBER";
-const char* password            = "devicenetwork";
+// const char* ssid                = "CMMC-MEMBER";
+// const char* password            = "devicenetwork";
 
 String on_msg = "";
 
@@ -41,11 +46,10 @@ int timer                       = 0;
 MicroGear microgear(client);
 
 void onMsghandler(char *topic, uint8_t* msg, unsigned int msglen) {
-    // Serial.print("Incoming message --> ");
+
+    DEBUG_PRINT("Incoming message --> ");
     msg[msglen] = '\0';
     DEBUG_PRINTLN((char *)msg);
-
-    
     
     for (int n = 0; n <= 1; n++) {
       switch(msg[n]) {
@@ -56,17 +60,17 @@ void onMsghandler(char *topic, uint8_t* msg, unsigned int msglen) {
       }
     }
     
-    if (on_msg == "01") { // Intiligent on
+    if (on_msg == "1") { // Intiligent on
 
-        Serial.print("10");
+        Serial.print("1");
       // digitalWrite(D1, 0);
       // Serial.println("Found command : Intiligent on");
       
     }
 
-    if (on_msg == "10") { // Intiligent off
+    if (on_msg == "0") { // Intiligent off
     
-        Serial.print("01");
+        Serial.print("0");
       // digitalWrite(D1, 1);
       // Serial.println("Found command : Intiligent off");
       

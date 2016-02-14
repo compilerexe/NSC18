@@ -6,21 +6,16 @@
 #include <ESP8266WiFi.h>
 #include <EEPROM.h>
 #include <MicroGear.h>
-#include <Wire.h>
+#include <Esp.h>
 
 // #define DEBUG_CODE
 #define DEBUG_PRINTER Serial
-
 #ifdef DEBUG_CODE
-
     #define DEBUG_PRINT(...) { DEBUG_PRINTER.print(__VA_ARGS__); }
     #define DEBUG_PRINTLN(...) { DEBUG_PRINTER.println(__VA_ARGS__); }
-
 #else
-
     #define DEBUG_PRINT(...) {}
     #define DEBUG_PRINTLN(...) {}
-
 #endif
 
 #define APPID                   "NSC18"
@@ -29,16 +24,15 @@
 #define ALIAS                   "NODEMCU"
 #define SCOPE                   "r:/NSC18/STATE,w:/NSC18/STATE,name:NODEMCU-CONTROL,chat:wwwNSC18"
 
-const char* ssid                = "WIFI-MAXNET";
-const char* password            = "macrol3ios";
+// const char* ssid                = "WIFI-MAXNET";
+// const char* password            = "macrol3ios";
+const char* ssid                = "ESPERT-002";
+const char* password            = "espertap";
 
-// const char* ssid                = "CMMC-MEMBER";
-// const char* password            = "devicenetwork";
+String on_msg                   = "";
+String memory_rx                = "";
 
-String on_msg = "";
-
-String memory_rx                 = "";
-
+EspClass Esp;
 WiFiClient client;
 AuthClient *authclient;
 
@@ -99,58 +93,58 @@ void onConnected(char *attribute, uint8_t* msg, unsigned int msglen) {
     microgear.setName("mygear");
 }
 
-void setup() {
-    /* Event listener */
+void autoConnect() {
+
     microgear.on(MESSAGE,onMsghandler);
     microgear.on(PRESENT,onFoundgear);
     microgear.on(ABSENT,onLostgear);
     microgear.on(CONNECTED,onConnected);
 
     Serial.begin(115200);
-    
-
     DEBUG_PRINTLN("Starting...");
 
     if (WiFi.begin(ssid, password)) {
-
         while (WiFi.status() != WL_CONNECTED) {
             delay(500);
             DEBUG_PRINT(".");
         }
-
-        DEBUG_PRINTLN("WiFi connected");  
-        DEBUG_PRINTLN("IP address: ");
-        DEBUG_PRINTLN(WiFi.localIP());
-
-        //uncomment the line below if you want to reset token -->
-        //microgear.resetToken();
-        microgear.init(KEY,SECRET,ALIAS,SCOPE);
-        microgear.connect(APPID);
-
     }
+
+    DEBUG_PRINTLN("WiFi connected");  
+    DEBUG_PRINTLN("IP address: ");
+    DEBUG_PRINTLN(WiFi.localIP());
+
+    microgear.init(KEY,SECRET,ALIAS,SCOPE);
+    microgear.connect(APPID);
+  
+}
+
+void setup() {
+    
+    Serial.begin(115200);
+    autoConnect();
+    
 }
 
 void loop() {
+
     if (microgear.connected()) {
+        
         microgear.loop();
         if (timer >= 1000) {
-            // Serial.println("Publish...");
+            // DEBUG_PRINTLN("Publish...");
             // microgear.chat("mygear","Hello");
-
-
-            
-
             timer = 0;
-        } 
-        else timer += 100;
-    }
-    else {
-        // Serial.println("connection lost, reconnect...");
+        } else { timer += 100; }
+
+    } else {
+
+        DEBUG_PRINTLN("connection lost, reconnect...");
         if (timer >= 5000) {
             microgear.connect(APPID);
             timer = 0;
-        }
-        else timer += 100;
+        } else { timer += 100; }
+    
     }
 
     delay(100);

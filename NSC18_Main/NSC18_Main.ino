@@ -38,9 +38,9 @@
 #define I2C_SCL             D1
 #define I2C_SDA             D2
 
-char* boot_mode             = ""; // if setting don't forgot remove.
-char* directory             = ""; // directory in current
-char* select_current        = "Select timer"; // first select
+String boot_mode            = ""; // if setting don't forgot remove.
+String directory            = ""; // directory in current
+String select_current       = "Select timer"; // first select
 
 struct Setting_timer
 {
@@ -68,14 +68,15 @@ int addr_length_ssid        = 256;
 int addr_length_pass        = 257;
 int addr_mode_auto          = 300;
 
+int check_mode_auto         = 0;
 /* Dht22  */
 int dht_counting_fail       = 0;
 
 /* detect button */
-char* run_left              = "";
-char* run_right             = "";
-char* run_center            = "";
-char* run_back              = "";
+String run_left              = "";
+String run_right             = "";
+String run_center            = "";
+String run_back              = "";
 
 const char* host            = "api.thingspeak.com";
 const char* writeAPIKey     = "2DTO3Y4QC93L2ZR9";
@@ -457,10 +458,16 @@ void setup()
       pinMode(PIN_SOIL,     INPUT);
 
       digitalWrite(ACTIVE_RELEY, 1);
-
       autoConnect();
+
+      int get_mode = EEPROM.read(addr_mode_auto);
+      if (get_mode == 1) {
+        check_mode_auto = 1;
+      } else {
+        check_mode_auto = 0;
+      }
       
-      // dht.begin();
+      dht.begin();
       lcd.begin();
       RTC.begin();
     //  RTC.adjust(DateTime(__DATE__, __TIME__));
@@ -543,6 +550,8 @@ void LCD_DISPLAY(float temp, float humid) {
 
   DateTime now = RTC.now();
   
+  int soil_sensor = analogRead(PIN_SOIL);
+
   lcd.setCursor(0, 0);
 
   if (int(now.day()) <= 9) {
@@ -592,6 +601,9 @@ void LCD_DISPLAY(float temp, float humid) {
   lcd.print(" Humid    ");
   lcd.print(humid);
   lcd.print(" %");
+  lcd.setCursor(0, 3);
+  lcd.print(" Soil    ");
+  lcd.print(soil_sensor);
 }
 
 void DEBUG(float temp, float humid) {
@@ -613,19 +625,6 @@ void DEBUG(float temp, float humid) {
   DEBUG_PRINTLN(now.hour(), DEC);
   DEBUG_PRINT("M : ");
   DEBUG_PRINTLN(now.minute(), DEC);
-
-
-  if (EEPROM.read(setting_t.eeprom_addr_h) > 0) {
-
-    if (EEPROM.read(setting_t.eeprom_addr_h) == now.hour() && EEPROM.read(setting_t.eeprom_addr_m) == now.minute()) {
-      digitalWrite(ACTIVE_RELEY, 0);
-    }
-
-    if (EEPROM.read(setting_t.eeprom_addr_after_h) == now.hour() && EEPROM.read(setting_t.eeprom_addr_after_m) == now.minute()) {
-      digitalWrite(ACTIVE_RELEY, 1);
-    }
-
-  }
 
   DEBUG_PRINTLN("====================");
   DEBUG_PRINT("Setting hour : ");
@@ -682,18 +681,18 @@ void FUNCTION_NORMAL() {
     
     lcd.clear();
     
-    // if (isnan(h) || isnan(t)) {
+    if (isnan(h) || isnan(t)) {
 
-    //   if (dht_counting_fail == 20) {
-    //     Esp.reset();
-    //   }
+      if (dht_counting_fail == 20) {
+        Esp.reset();
+      }
 
-    //   dht_counting_fail++;
-    //   
-    //   DEBUG_PRINTLN("Failed to read from DHT sensor!");
-    //   
-    //   return;
-    // }
+      dht_counting_fail++;
+      
+      DEBUG_PRINTLN("Failed to read from DHT sensor!");
+      
+      return;
+    }
 
     LCD_DISPLAY(t, h);
 
@@ -717,6 +716,7 @@ void FUNCTION_SETTING() {
 }
 
 void FUNCTION_SET_TIMER_HOUR() {
+
   lcd.setCursor(0,0);
   lcd.print("Set Timer (24 Hour)");
   lcd.setCursor(0,1);
@@ -1126,9 +1126,33 @@ void get_heap() {
   
 }
 
+void get_modeTimer() {
+  DateTime now = RTC.now();
+
+  int h_old = EEPROM.read(setting_t.eeprom_addr_h);
+  int m_old = EEPROM.read(setting_t.eeprom_addr_m);
+  
+  int h_new = EEPROM.read(setting_t.eeprom_addr_after_h);
+  int m_new = EEPROM.read(setting_t.eeprom_addr_after_m);
+
+  if (h_old > 0) {
+
+    if (h_old == now.hour() && m_old == now.minute()) {
+      digitalWrite(ACTIVE_RELEY, 0);
+      DEBUG_PRINTLN("relay on");
+    } else {
+      if (h_old >= h_new && m_old >= m_new) {
+        digitalWrite(ACTIVE_RELEY, 1);
+        DEBUG_PRINTLN("relay off");
+      }
+    }
+
+  }
+}
+
 void get_modeAuto() {
-  int get_mode = EEPROM.read(addr_mode_auto);
-  if (get_mode == 1) {
+  
+  if (check_mode_auto == 1) {
     int soil_read = analogRead(A0);
     if (soil_read > 300) {
       digitalWrite(ACTIVE_RELEY, 0);
@@ -1137,9 +1161,6 @@ void get_modeAuto() {
     }
   }
 
-  if (get_mode == 0) {
-    digitalWrite(ACTIVE_RELEY, 1);
-  }
 }
 
 void loop() {
@@ -1226,7 +1247,7 @@ void loop() {
       } else {
 
         FUNCTION_NORMAL();
-
+        get_modeTimer();
         get_modeAuto();
 
       }

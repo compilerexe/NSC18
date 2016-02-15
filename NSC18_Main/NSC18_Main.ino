@@ -607,7 +607,17 @@ void LCD_DISPLAY(float temp, float humid) {
   lcd.print(" ");
   lcd.write(5);
   lcd.print(" Soil     ");
-  lcd.print(soil_sensor);
+
+  if (soil_sensor >= 600) {
+    lcd.print("0     %");
+  } else if (soil_sensor >= 500) {
+    lcd.print("40    %");
+  } else if (soil_sensor >= 300) {
+    lcd.print("80    %");
+  } else if (soil_sensor >= 100) {
+    lcd.print("100   %");
+  }
+
 }
 
 void DEBUG(float temp, float humid) {

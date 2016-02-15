@@ -24,8 +24,6 @@
 #define ALIAS                   "NODEMCU"
 #define SCOPE                   "r:/NSC18/STATE,w:/NSC18/STATE,name:NODEMCU-CONTROL,chat:wwwNSC18"
 
-// const char* ssid                = "WIFI-MAXNET";
-// const char* password            = "macrol3ios";
 const char* ssid                = "ESPERT-002";
 const char* password            = "espertap";
 

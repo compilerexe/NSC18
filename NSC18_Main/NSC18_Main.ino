@@ -501,13 +501,15 @@ void setup()
   
 }
 
-void SENT_THINGSPEAK(float temp, float humid) {
+void SENT_THINGSPEAK(float temp, float humid, int soil) {
   String url = "/update?api_key=";
   url += writeAPIKey;
   url += "&field1=";
   url += temp;
   url += "&field2=";
   url += humid;
+  url += "&field3=";
+  url += soil;
   
   if (!client.connect(host, httpPort)) {
     
@@ -687,6 +689,18 @@ void FUNCTION_NORMAL() {
     int humid = dht.readHumidity();
     int temp  = dht.readTemperature();
     
+    int soil_sensor = analogRead(PIN_SOIL);
+
+    if (soil_sensor >= 600) {
+      soil_sensor = 0;
+    } else if (soil_sensor >= 500) {
+      soil_sensor = 40;
+    } else if (soil_sensor >= 300) {
+      soil_sensor = 80;
+    } else if (soil_sensor >= 100) {
+      soil_sensor = 100;
+    }
+
   //      if (RTC.checkIfAlarm(1)) {
   //        DEBUG_PRINTLN("Alarm Triggered");
   //      }
@@ -710,7 +724,7 @@ void FUNCTION_NORMAL() {
 
     LCD_DISPLAY(t, h);
 
-    SENT_THINGSPEAK(t, h);
+    SENT_THINGSPEAK(t, h, soil_sensor);
     
     DEBUG(t, h);
 

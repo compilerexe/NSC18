@@ -112,10 +112,11 @@ unsigned long currentMillis;
 const long    interval        = 2000; 
 
 /* ICON */
-byte ICON_TIME[8] {B11111,B11001,B11001,B01110,B01110,B10011,B10011,B11111};
-byte ICON_TEMP[8] {B00100,B01010,B01010,B01110,B01110,B11111,B11111,B01110};
-byte ICON_HUMID[8] {B00100,B00100,B01010,B01010,B10001,B10001,B10001,B01110};
+byte ICON_TIME[8]   {B11111,B11001,B11001,B01110,B01110,B10011,B10011,B11111};
+byte ICON_TEMP[8]   {B00100,B01010,B01010,B01110,B01110,B11111,B11111,B01110};
+byte ICON_HUMID[8]  {B00100,B00100,B01010,B01010,B10001,B10001,B10001,B01110};
 byte ICON_SELECT[8] {B00100,B00110,B00111,B11111,B11111,B00111,B00110,B00100};
+byte ICON_SOIL[8]   {B00000,B00000,B00000,B11111,B10001,B11111,B11111,B11111};
 
 void wifi_ap() {
   
@@ -492,6 +493,7 @@ void setup()
       lcd.createChar(2, ICON_TEMP);
       lcd.createChar(3, ICON_HUMID);
       lcd.createChar(4, ICON_SELECT);
+      lcd.createChar(5, ICON_SOIL);
       lcd.clear();
       
     }
@@ -602,7 +604,9 @@ void LCD_DISPLAY(float temp, float humid) {
   lcd.print(humid);
   lcd.print(" %");
   lcd.setCursor(0, 3);
-  lcd.print(" Soil    ");
+  lcd.print(" ");
+  lcd.write(5);
+  lcd.print(" Soil     ");
   lcd.print(soil_sensor);
 }
 
@@ -1219,28 +1223,28 @@ void loop() {
         }
 
         if (memory_rx.equals("1")) {
-          DEBUG_PRINT("I have messages : ");
-          DEBUG_PRINTLN("mode auto is online");
+          DEBUG_PRINT("Messages : ");
+          DEBUG_PRINTLN("auto is online");
           EEPROM.write(addr_mode_auto, 1);
           EEPROM.commit();
           lcd.clear();
           lcd.setCursor(0, 0);
-          lcd.print("I have messages");
+          lcd.print("Messages : ");
           lcd.setCursor(0, 2);
-          lcd.print(" > Mode auto is online");
+          lcd.print("auto is online");
           Esp.reset(); 
         }
 
         if (memory_rx.equals("0")) {
-          DEBUG_PRINT("I have messages : ");
-          DEBUG_PRINTLN("mode auto is offline");
+          DEBUG_PRINT("Messages : ");
+          DEBUG_PRINTLN("auto is offline");
           EEPROM.write(addr_mode_auto, 0);
           EEPROM.commit();
           lcd.clear();
           lcd.setCursor(0, 0);
-          lcd.print("I have messages");
+          lcd.print("Messages : ");
           lcd.setCursor(0, 2);
-          lcd.print(" > Mode auto is offline");
+          lcd.print("auto is offline");
           Esp.reset(); 
         }
 

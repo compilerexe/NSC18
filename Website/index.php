@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>NSC18</title>
+	<title>NSC 18</title>
 	<!-- Fonts -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.4.0/css/font-awesome.min.css" rel='stylesheet' type='text/css'>
     <link href="https://fonts.googleapis.com/css?family=Lato:100,300,400,700" rel='stylesheet' type='text/css'>
@@ -14,9 +14,14 @@
 
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
 
+	<style type="text/css">
+		.data-sensor {
+			background-image: url('bg.png');
+		}
+	</style>
 
 </head>
-<body>
+<body background="bg.png">
 	<nav class="navbar navbar-inverse navbar-static-top">
 		<div class="container-fluid">
 			<div class="navbar-header">
@@ -52,7 +57,7 @@
 					<div class="panel-heading">
 						<b id="time_now">DATE</b>
 					</div>
-					<div class="panel-body">
+					<div class="panel-body data-sensor">
 						<div id="data">
 							
 						</div>
@@ -66,40 +71,36 @@
 							<div class="col-md-6">
 								<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="http://api.thingspeak.com/channels/78787/charts/2?width=450&height=260&timescale=30&results=1024&dynamic=true&type=spline" ></iframe>
 							</div>
+							<div class="col-md-6">
+								<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="http://api.thingspeak.com/channels/78787/charts/3?width=450&height=260&results=60&dynamic=true" ></iframe>
+							</div>
+							<div class="col-md-4" style="margin-top: 15px">
+								<div class="panel panel-warning">
+								<div class="panel-heading">
+									<b id="label_mode" >Mode Intiligent</b>
+								</div>
+								<div class="panel-body">
+									<div class="col-md-6">
+										<div class="form-group"><button type="button" id="Intiligent_on" class="btn btn-success" style="width:100%; height:50px;"><span class="glyphicon glyphicon-leaf"></span> <b>On</b></button></div>
+									</div>
+									<div class="col-md-6">
+										<div class="form-group"><button type="button" id="Intiligent_off" class="btn btn-danger" style="width:100%; height:50px;"><span class="glyphicon glyphicon-off"></span> <b>Off</b></button></div>
+									</div>
+									
+								</div>
+							</div>
+							</div>
+
+							<div class="col-md-2" style="margin-top: 15px">
+								<span style="display: block !important; width: 180px; text-align: center; font-family: sans-serif; font-size: 12px;"><a href="http://www.wunderground.com/cgi-bin/findweather/getForecast?query=zmw:00000.1.48327&bannertypeclick=wu_bluestripes" title="Chiang Mai, Thailand Weather Forecast" target="_blank"><img src="http://weathersticker.wunderground.com/weathersticker/cgi-bin/banner/ban/wxBanner?bannertype=wu_bluestripes_metric&airportcode=VTCC&ForcedCity=Chiang Mai&ForcedState=Thailand&wmo=48327&language=EN" alt="Find more about Weather in Chiang Mai, TH" width="160" /></a><br><a href="http://www.wunderground.com/cgi-bin/findweather/getForecast?query=zmw:00000.1.48327&bannertypeclick=wu_bluestripes" title="Get latest Weather Forecast updates" style="font-family: sans-serif; font-size: 12px" target="_blank">Click for weather forecast</a></span>
+							</div>
+
 
 						</div>
 					</div>
 				</div>
 			</div>
-			<div class="col-md-6">
-				<div class="panel panel-info">
-					<div class="panel-heading">
-						<b id="label_mode" >Mode Intiligent</b>
-					</div>
-					<div class="panel-body">
-						<div class="col-md-6">
-							<div class="form-group"><button type="button" id="Intiligent_on" class="btn btn-success" style="width:100%; height:50px;"><span class="glyphicon glyphicon-leaf"></span> <b>On</b></button></div>
-						</div>
-						<div class="col-md-6">
-							<div class="form-group"><button type="button" id="Intiligent_off" class="btn btn-danger" style="width:100%; height:50px;"><span class="glyphicon glyphicon-off"></span> <b>Off</b></button></div>
-						</div>
-						<!-- <div class="col-md-12">
-							<div class="col-md-12">
-								<form class="form-inline">
-									<div class="form-group"><button type="button" id="Intiligent_on" class="btn btn-success"><span class="glyphicon glyphicon-leaf"></span> <b>On</b></button></div>&ensp;
-									<div class="form-group"><button type="button" id="Intiligent_off" class="btn btn-danger"><span class="glyphicon glyphicon-off"></span> <b>Off</b></button></div>
-								</form>
-							</div>
-							
-						</div> -->
-					</div>
-				</div>	
-			</div>
-
-			<div class="col-md-6">
-				<span style="display: block !important; width: 180px; text-align: center; font-family: sans-serif; font-size: 12px;"><a href="http://www.wunderground.com/cgi-bin/findweather/getForecast?query=zmw:00000.1.48327&bannertypeclick=wu_bluestripes" title="Chiang Mai, Thailand Weather Forecast" target="_blank"><img src="http://weathersticker.wunderground.com/weathersticker/cgi-bin/banner/ban/wxBanner?bannertype=wu_bluestripes_metric&airportcode=VTCC&ForcedCity=Chiang Mai&ForcedState=Thailand&wmo=48327&language=EN" alt="Find more about Weather in Chiang Mai, TH" width="160" /></a><br><a href="http://www.wunderground.com/cgi-bin/findweather/getForecast?query=zmw:00000.1.48327&bannertypeclick=wu_bluestripes" title="Get latest Weather Forecast updates" style="font-family: sans-serif; font-size: 12px" target="_blank">Click for weather forecast</a></span>
-			</div>
-
+			
 		</div>
 	</div>
 

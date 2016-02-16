@@ -1169,7 +1169,7 @@ void get_modeTimer() {
       digitalWrite(ACTIVE_RELEY, 0);
       DEBUG_PRINTLN("relay on");
     } else {
-      if (h_old >= h_new && m_old >= m_new) {
+      if (now.hour() >= h_new && now.minute() >= m_new) {
         digitalWrite(ACTIVE_RELEY, 1);
         DEBUG_PRINTLN("relay off");
       }
@@ -1272,19 +1272,15 @@ void loop() {
           Esp.reset(); 
         }
 
-      } else {
-
-        FUNCTION_NORMAL();
-        get_modeTimer();
-        get_modeAuto();
-
       }
+
+      FUNCTION_NORMAL();
+      get_modeTimer();
+      get_modeAuto();
 
     }
 
   }
-
-  
 
   delay(100);
 }

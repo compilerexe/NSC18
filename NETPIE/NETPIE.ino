@@ -24,8 +24,8 @@
 #define ALIAS                   "NODEMCU"
 #define SCOPE                   "r:/NSC18/STATE,w:/NSC18/STATE,name:NODEMCU-CONTROL,chat:wwwNSC18"
 
-const char* ssid                = "ESPERT-002";
-const char* password            = "espertap";
+const char* ssid                = "WIFI-TEST";
+const char* password            = "password";
 
 String on_msg                   = "";
 String memory_rx                = "";

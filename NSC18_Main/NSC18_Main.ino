@@ -38,9 +38,9 @@
 #define I2C_SCL             D1
 #define I2C_SDA             D2
 
-String boot_mode            = ""; // if setting don't forgot remove.
-String directory            = ""; // directory in current
-String select_current       = "Select timer"; // first select
+char boot_mode[20];         // if setting don't forgot remove.
+char directory[20];         // directory in current
+char select_current[30]     = "Select timer"; // first select
 
 struct Setting_timer
 {
@@ -73,10 +73,10 @@ int check_mode_auto         = 0;
 int dht_counting_fail       = 0;
 
 /* detect button */
-String run_left              = "";
-String run_right             = "";
-String run_center            = "";
-String run_back              = "";
+char run_left[20];
+char run_right[20];
+char run_center[20];
+char run_back[20];
 
 const char* host            = "api.thingspeak.com";
 const char* writeAPIKey     = "2DTO3Y4QC93L2ZR9";
@@ -89,14 +89,12 @@ const char* ap_ip[4]        = {"192", "168", "0", "100"};
 const char* ap_subnet[4]    = {"255", "255", "255", "0"};
 const char* ap_gateway[4]   = {"192", "168", "0", "1"};
 
-String http_ssid            = "";
-String http_pass            = "";
-
 int state_internet          = 0;
+int counting_connect        = 0;
 
 /*=======================*/
 
-String memory_rx             = "";
+char memory_rx[1];
 int read_rx                  = 0;
 
 EspClass Esp;
@@ -112,11 +110,12 @@ unsigned long currentMillis;
 const long    interval        = 2000; 
 
 /* ICON */
-byte ICON_TIME[8]   {B11111,B11001,B11001,B01110,B01110,B10011,B10011,B11111};
-byte ICON_TEMP[8]   {B00100,B01010,B01010,B01110,B01110,B11111,B11111,B01110};
-byte ICON_HUMID[8]  {B00100,B00100,B01010,B01010,B10001,B10001,B10001,B01110};
-byte ICON_SELECT[8] {B00100,B00110,B00111,B11111,B11111,B00111,B00110,B00100};
-byte ICON_SOIL[8]   {B00000,B00000,B00000,B11111,B10001,B11111,B11111,B11111};
+byte ICON_TIME[8]       {B11111,B11001,B11001,B01110,B01110,B10011,B10011,B11111};
+byte ICON_TEMP[8]       {B00100,B01010,B01010,B01110,B01110,B11111,B11111,B01110};
+byte ICON_HUMID[8]      {B00100,B00100,B01010,B01010,B10001,B10001,B10001,B01110};
+byte ICON_SELECT[8]     {B00100,B00110,B00111,B11111,B11111,B00111,B00110,B00100};
+byte ICON_SOIL[8]       {B00000,B00000,B00000,B11111,B10001,B11111,B11111,B11111};
+byte ICON_CONNECT[8]    {B11111,B00000,B01110,B00000,B01110,B00100,B00100,B00100};
 
 void wifi_ap() {
   
@@ -143,9 +142,9 @@ void wifi_ap() {
   
 }
 
-void saveWiFi() {
+void saveWiFi(const char *ssid, const char *pass) {
 
-  WiFi.begin(http_ssid.c_str(), http_pass.c_str());
+  WiFi.begin(ssid, pass);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     
@@ -159,12 +158,12 @@ void saveWiFi() {
   DEBUG_PRINT("eeprom ssid : ");
   
 
-  for (int i = 0; i < http_ssid.length(); i++) {
+  for (int i = 0; i < strlen(ssid); i++) {
 
-    EEPROM.write(addr_eeprom_wifi, http_ssid[i]);
+    EEPROM.write(addr_eeprom_wifi, ssid[i]);
     addr_eeprom_wifi++;
     
-    DEBUG_PRINT(http_ssid[i]);
+    DEBUG_PRINT(ssid[i]);
     
   }
 
@@ -172,18 +171,18 @@ void saveWiFi() {
   DEBUG_PRINTLN();
   DEBUG_PRINT("eeprom pass : ");
   
-  for (int j = 0; j < http_pass.length(); j++) {
+  for (int j = 0; j < strlen(pass); j++) {
 
-    EEPROM.write(addr_eeprom_wifi, http_pass[j]);
+    EEPROM.write(addr_eeprom_wifi, pass[j]);
 
     addr_eeprom_wifi++;
     
-    DEBUG_PRINT(http_pass[j]);
+    DEBUG_PRINT(pass[j]);
     
   }
 
-  EEPROM.write(addr_length_ssid, http_ssid.length());
-  EEPROM.write(addr_length_pass, http_pass.length());
+  EEPROM.write(addr_length_ssid, strlen(ssid));
+  EEPROM.write(addr_length_pass, strlen(pass));
   EEPROM.commit();
   Esp.reset();
 
@@ -191,33 +190,35 @@ void saveWiFi() {
 
 void webserver_display() {
 
-  if (state_internet == 0) {
-      String codeHtml = "\
-      <html>\
-        <head>\
-          <meta name='viewport' content='initial-scale=1.0, user-scalable=no'>\
-          <title>WiFi Config</title>\
-        </head>\
-        <body>\
-          <form method='get'>\
-            SSID&ensp;\
-            <input type='text' name='SSID'>\
-            </select><br><br>\
-            PASS&ensp;<input type='text' name='password'><br><br>\
-            <input type='submit' value='Connect'>\
-          </form>\
-        </body>\
-      </html>";
+  String codeHtml = "\
+  <html>\
+    <head>\
+      <meta name='viewport' content='initial-scale=1.0, user-scalable=no'>\
+      <title>WiFi Config</title>\
+    </head>\
+    <body>\
+      <form method='get'>\
+        SSID&ensp;\
+        <input type='text' name='SSID'>\
+        </select><br><br>\
+        PASS&ensp;<input type='text' name='password'><br><br>\
+        <input type='submit' value='Connect'>\
+      </form>\
+    </body>\
+  </html>";
+
+  server.send(200, "text/html", codeHtml);
   
-      server.send(200, "text/html", codeHtml);
-  }
 
   if (server.arg(0) != "" && server.arg(1) != "") {
 
-    http_ssid = server.arg(0);
-    http_pass = server.arg(1);
+    char http_ssid[20];
+    char http_pass[20];
 
-    saveWiFi();
+    strcpy(http_ssid, server.arg(0).c_str());
+    strcpy(http_pass, server.arg(1).c_str());
+
+    saveWiFi(http_ssid, http_pass);
 
   }
     
@@ -234,104 +235,104 @@ void webserver_config() {
 
 String decryption_ascii(char ascii_code) {
 
-  String buffer_x = "";
+  char buffer_x[1];
 
   switch (ascii_code) {
-    case 32 : buffer_x += " "; break;
-    case 33 : buffer_x += "!"; break;
-    case 34 : buffer_x += '"'; break;
-    case 35 : buffer_x += "#"; break;
-    case 36 : buffer_x += "$"; break;
-    case 37 : buffer_x += "%"; break;
-    case 38 : buffer_x += "&"; break;
-    case 39 : buffer_x += "'"; break;
-    case 40 : buffer_x += "("; break;
-    case 41 : buffer_x += ")"; break;
-    case 42 : buffer_x += "*"; break;
-    case 43 : buffer_x += "+"; break;
-    case 44 : buffer_x += ","; break;
-    case 45 : buffer_x += "-"; break;
-    case 46 : buffer_x += "."; break;
-    case 47 : buffer_x += "/"; break;
+    case 32 : strcpy(buffer_x, " "); break;
+    case 33 : strcpy(buffer_x, "!"); break;
+    // case 34 : strcpy(buffer_x, '"'); break;
+    case 35 : strcpy(buffer_x, "#"); break;
+    case 36 : strcpy(buffer_x, "$"); break;
+    case 37 : strcpy(buffer_x, "%"); break;
+    case 38 : strcpy(buffer_x, "&"); break;
+    case 39 : strcpy(buffer_x, "'"); break;
+    case 40 : strcpy(buffer_x, "("); break;
+    case 41 : strcpy(buffer_x, ")"); break;
+    case 42 : strcpy(buffer_x, "*"); break;
+    case 43 : strcpy(buffer_x, "+"); break;
+    case 44 : strcpy(buffer_x, ","); break;
+    case 45 : strcpy(buffer_x, "-"); break;
+    case 46 : strcpy(buffer_x, "."); break;
+    case 47 : strcpy(buffer_x, "/"); break;
 
-    case 48 : buffer_x += "0"; break;
-    case 49 : buffer_x += "1"; break;
-    case 50 : buffer_x += "2"; break;
-    case 51 : buffer_x += "3"; break;
-    case 52 : buffer_x += "4"; break;
-    case 53 : buffer_x += "5"; break;
-    case 54 : buffer_x += "6"; break;
-    case 55 : buffer_x += "7"; break;
-    case 56 : buffer_x += "8"; break;
-    case 57 : buffer_x += "9"; break;
+    case 48 : strcpy(buffer_x, "0"); break;
+    case 49 : strcpy(buffer_x, "1"); break;
+    case 50 : strcpy(buffer_x, "2"); break;
+    case 51 : strcpy(buffer_x, "3"); break;
+    case 52 : strcpy(buffer_x, "4"); break;
+    case 53 : strcpy(buffer_x, "5"); break;
+    case 54 : strcpy(buffer_x, "6"); break;
+    case 55 : strcpy(buffer_x, "7"); break;
+    case 56 : strcpy(buffer_x, "8"); break;
+    case 57 : strcpy(buffer_x, "9"); break;
 
-    case 58 : buffer_x += ":"; break;
-    case 59 : buffer_x += ";"; break;
-    case 60 : buffer_x += "<"; break;
+    case 58 : strcpy(buffer_x, ":"); break;
+    case 59 : strcpy(buffer_x, ";"); break;
+    case 60 : strcpy(buffer_x, "<"); break;
 
-    case 61 : buffer_x += "="; break;
-    case 62 : buffer_x += ">"; break;
-    case 63 : buffer_x += "?"; break;
-    case 64 : buffer_x += "@"; break;
+    case 61 : strcpy(buffer_x, "="); break;
+    case 62 : strcpy(buffer_x, ">"); break;
+    case 63 : strcpy(buffer_x, "?"); break;
+    case 64 : strcpy(buffer_x, "@"); break;
 
-    case 65 : buffer_x += "A"; break;
-    case 66 : buffer_x += "B"; break;
-    case 67 : buffer_x += "C"; break;
-    case 68 : buffer_x += "D"; break;
-    case 69 : buffer_x += "E"; break;
-    case 70 : buffer_x += "F"; break;
-    case 71 : buffer_x += "G"; break;
-    case 72 : buffer_x += "H"; break;
-    case 73 : buffer_x += "I"; break;
-    case 74 : buffer_x += "J"; break;
-    case 75 : buffer_x += "K"; break;
-    case 76 : buffer_x += "L"; break;
-    case 77 : buffer_x += "M"; break;
-    case 78 : buffer_x += "N"; break;
-    case 79 : buffer_x += "O"; break;
-    case 80 : buffer_x += "P"; break;
-    case 81 : buffer_x += "Q"; break;
-    case 82 : buffer_x += "R"; break;
-    case 83 : buffer_x += "S"; break;
-    case 84 : buffer_x += "T"; break;
-    case 85 : buffer_x += "U"; break;
-    case 86 : buffer_x += "V"; break;
-    case 87 : buffer_x += "W"; break;
-    case 88 : buffer_x += "X"; break;
-    case 89 : buffer_x += "Y"; break;
-    case 90 : buffer_x += "Z"; break;
+    case 65 : strcpy(buffer_x, "A"); break;
+    case 66 : strcpy(buffer_x, "B"); break;
+    case 67 : strcpy(buffer_x, "C"); break;
+    case 68 : strcpy(buffer_x, "D"); break;
+    case 69 : strcpy(buffer_x, "E"); break;
+    case 70 : strcpy(buffer_x, "F"); break;
+    case 71 : strcpy(buffer_x, "G"); break;
+    case 72 : strcpy(buffer_x, "H"); break;
+    case 73 : strcpy(buffer_x, "I"); break;
+    case 74 : strcpy(buffer_x, "J"); break;
+    case 75 : strcpy(buffer_x, "K"); break;
+    case 76 : strcpy(buffer_x, "L"); break;
+    case 77 : strcpy(buffer_x, "M"); break;
+    case 78 : strcpy(buffer_x, "N"); break;
+    case 79 : strcpy(buffer_x, "O"); break;
+    case 80 : strcpy(buffer_x, "P"); break;
+    case 81 : strcpy(buffer_x, "Q"); break;
+    case 82 : strcpy(buffer_x, "R"); break;
+    case 83 : strcpy(buffer_x, "S"); break;
+    case 84 : strcpy(buffer_x, "T"); break;
+    case 85 : strcpy(buffer_x, "U"); break;
+    case 86 : strcpy(buffer_x, "V"); break;
+    case 87 : strcpy(buffer_x, "W"); break;
+    case 88 : strcpy(buffer_x, "X"); break;
+    case 89 : strcpy(buffer_x, "Y"); break;
+    case 90 : strcpy(buffer_x, "Z"); break;
     
-    case 97 : buffer_x += "a"; break;
-    case 98 : buffer_x += "b"; break;
-    case 99 : buffer_x += "c"; break;
-    case 100 : buffer_x += "d"; break;
-    case 101 : buffer_x += "e"; break;
-    case 102 : buffer_x += "f"; break;
-    case 103 : buffer_x += "g"; break;
-    case 104 : buffer_x += "h"; break;
-    case 105 : buffer_x += "i"; break;
-    case 106 : buffer_x += "j"; break;
-    case 107 : buffer_x += "k"; break;
-    case 108 : buffer_x += "l"; break;
-    case 109 : buffer_x += "m"; break;
-    case 110 : buffer_x += "n"; break;
-    case 111 : buffer_x += "o"; break;
-    case 112 : buffer_x += "p"; break;
-    case 113 : buffer_x += "q"; break;
-    case 114 : buffer_x += "r"; break;
-    case 115 : buffer_x += "s"; break;
-    case 116 : buffer_x += "t"; break;
-    case 117 : buffer_x += "u"; break;
-    case 118 : buffer_x += "v"; break;
-    case 119 : buffer_x += "w"; break;
-    case 120 : buffer_x += "x"; break;
-    case 121 : buffer_x += "y"; break;
-    case 122 : buffer_x += "z"; break;
+    case 97 : strcpy(buffer_x, "a"); break;
+    case 98 : strcpy(buffer_x, "b"); break;
+    case 99 : strcpy(buffer_x, "c"); break;
+    case 100 : strcpy(buffer_x, "d"); break;
+    case 101 : strcpy(buffer_x, "e"); break;
+    case 102 : strcpy(buffer_x, "f"); break;
+    case 103 : strcpy(buffer_x, "g"); break;
+    case 104 : strcpy(buffer_x, "h"); break;
+    case 105 : strcpy(buffer_x, "i"); break;
+    case 106 : strcpy(buffer_x, "j"); break;
+    case 107 : strcpy(buffer_x, "k"); break;
+    case 108 : strcpy(buffer_x, "l"); break;
+    case 109 : strcpy(buffer_x, "m"); break;
+    case 110 : strcpy(buffer_x, "n"); break;
+    case 111 : strcpy(buffer_x, "o"); break;
+    case 112 : strcpy(buffer_x, "p"); break;
+    case 113 : strcpy(buffer_x, "q"); break;
+    case 114 : strcpy(buffer_x, "r"); break;
+    case 115 : strcpy(buffer_x, "s"); break;
+    case 116 : strcpy(buffer_x, "t"); break;
+    case 117 : strcpy(buffer_x, "u"); break;
+    case 118 : strcpy(buffer_x, "v"); break;
+    case 119 : strcpy(buffer_x, "w"); break;
+    case 120 : strcpy(buffer_x, "x"); break;
+    case 121 : strcpy(buffer_x, "y"); break;
+    case 122 : strcpy(buffer_x, "z"); break;
 
-    case 123 : buffer_x += "{"; break;
-    case 124 : buffer_x += "|"; break;
-    case 125 : buffer_x += "}"; break;
-    case 126 : buffer_x += "~"; break;
+    case 123 : strcpy(buffer_x, "{"); break;
+    case 124 : strcpy(buffer_x, "|"); break;
+    case 125 : strcpy(buffer_x, "}"); break;
+    case 126 : strcpy(buffer_x, "~"); break;
   }
 
   return buffer_x;
@@ -384,22 +385,31 @@ void autoConnect() {
   DEBUG_PRINT("Connecting to ");
   DEBUG_PRINTLN(decryp_ssid);
   
+  lcd.setCursor(0, 0);
+  lcd.print("State : Connecting.");
+  lcd.setCursor(0, 2);
+  lcd.print("SSID  : ");
+  lcd.print(decryp_ssid);
 
   WiFi.begin(decryp_ssid.c_str(), decryp_pass.c_str());
   
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    
-    DEBUG_PRINT(".");
-    
+  while (counting_connect <= 30) {
+
+    if (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      DEBUG_PRINT(".");
+    } else {
+      DEBUG_PRINTLN("");
+      DEBUG_PRINTLN("WiFi connected");  
+      DEBUG_PRINTLN("IP address: ");
+      DEBUG_PRINTLN(WiFi.localIP());
+      state_internet = 1;
+    }
+
+    counting_connect++;
+
   }
 
-  
-  DEBUG_PRINTLN("");
-  DEBUG_PRINTLN("WiFi connected");  
-  DEBUG_PRINTLN("IP address: ");
-  DEBUG_PRINTLN(WiFi.localIP());
-  
 }
 
 void setup()
@@ -412,10 +422,10 @@ void setup()
 
   EEPROM.begin(512);
   lcd.begin();
-  lcd.clear();
+  lcd.home();
 
-  if (digitalRead(BTN_LEFT) == 1 || boot_mode == "setting") {
-    boot_mode = "setting";
+  if (digitalRead(BTN_LEFT) == 1 || strcmp(boot_mode, "setting") == 0) {
+    strcpy(boot_mode, "setting");
 
     //pinMode(BTN_RIGHT,  INPUT); // RIGHT
     pinMode(BTN_CENTER, INPUT); // ENTER
@@ -423,7 +433,6 @@ void setup()
 
     lcd.createChar(4, ICON_SELECT);
 
-    
     DEBUG_PRINTLN();
     DEBUG_PRINTLN();
     DEBUG_PRINTLN("Boot setting");
@@ -432,7 +441,7 @@ void setup()
   } else {
 
     if (digitalRead(BTN_RIGHT) == 1) {
-      boot_mode = "setting wifi";
+      strcpy(boot_mode, "setting wifi");
 
       pinMode(BTN_LEFT,   OUTPUT);
       pinMode(BTN_RIGHT,  OUTPUT);
@@ -446,6 +455,8 @@ void setup()
       
 
       lcd.setCursor(0, 0);
+      lcd.print("Access Point.");
+      lcd.setCursor(0, 2);
       lcd.print("IP : 192.168.0.100");
 
       wifi_ap();
@@ -459,6 +470,7 @@ void setup()
       pinMode(PIN_SOIL,     INPUT);
 
       digitalWrite(ACTIVE_RELEY, 1);
+
       autoConnect();
 
       int get_mode = EEPROM.read(addr_mode_auto);
@@ -482,9 +494,7 @@ void setup()
 
       DateTime now = RTC.now();
     //  RTC.setAlarm1Simple(23, 9);
-
     //  RTC.turnOnAlarm(1);
-
     //  if (RTC.checkAlarmEnabled(1)) {
     //    DEBUG_PRINTLN("Alarm Enabled");
     //  }
@@ -494,7 +504,8 @@ void setup()
       lcd.createChar(3, ICON_HUMID);
       lcd.createChar(4, ICON_SELECT);
       lcd.createChar(5, ICON_SOIL);
-      lcd.clear();
+      lcd.createChar(6, ICON_CONNECT);
+      lcd.home();
       
     }
   }
@@ -592,7 +603,14 @@ void LCD_DISPLAY(float temp, float humid) {
   }
   
   lcd.print(" ");
-  lcd.write(1);
+
+  if (state_internet == 1) {
+    lcd.write(6);
+  } else {
+    lcd.print("N");
+  }
+
+  // lcd.write(1);
   lcd.setCursor(0, 1);
   lcd.print(" ");
   lcd.write(2);
@@ -661,7 +679,7 @@ void DEBUG(float temp, float humid) {
 
 void FUNCTION_WRITE_EEPROM() {
   setting_t.reboot_time--;
-  lcd.clear();
+  lcd.home();
   lcd.setCursor(0,0);
   lcd.print("Save success.");
   lcd.setCursor(0,2);
@@ -707,7 +725,7 @@ void FUNCTION_NORMAL() {
 
     DEBUG_PRINTLN();
     
-    lcd.clear();
+    lcd.home();
     
     if (isnan(h) || isnan(t)) {
 
@@ -724,17 +742,19 @@ void FUNCTION_NORMAL() {
 
     LCD_DISPLAY(t, h);
 
-    SENT_THINGSPEAK(t, h, soil_sensor);
-    
+    if (state_internet == 1 ) {
+      SENT_THINGSPEAK(t, h, soil_sensor);
+    }
+
     DEBUG(t, h);
 
   }
 }
 
 void FUNCTION_SETTING() {
-  directory = "root";
+  strcpy(directory, "root");
 
-  lcd.clear();
+  lcd.home();
   lcd.setCursor(0, 0);
   lcd.print("Slect Mode");
   lcd.setCursor(0, 2);
@@ -867,29 +887,29 @@ void FUNCTION_SET_TIMER_SAVE() {
 }
 
 void FUNCTION_SET_TIMER() {
-  directory = "root/set_timer";
-  
+  strcpy(directory, "root/set_timer");
+
   if (setting_t.reboot_time < 6) {
     FUNCTION_WRITE_EEPROM();
   } else {
 
-    if (select_current == "Select hour" || select_current == "Set hour is active.") {
+    if (strcmp(select_current, "Select hour") == 0 || strcmp(select_current, "Set hour is active.") == 0) {
       FUNCTION_SET_TIMER_HOUR();
     }
 
-    if (select_current == "Set after hour is active.") {
+    if (strcmp(select_current, "Set after hour is active.") == 0) {
       FUNCTION_SET_TIMER_HOUR();
     }
 
-    if (select_current == "Select minute" || select_current == "Set minute is active.") {
+    if (strcmp(select_current, "Select minute") == 0 || strcmp(select_current, "Set minute is active.") == 0) {
       FUNCTION_SET_TIMER_MINUTE();
     }
 
-    if (select_current == "Set after minute is active.") {
+    if (strcmp(select_current, "Set after minute is active.") == 0) {
       FUNCTION_SET_TIMER_MINUTE();
     }
 
-    if (select_current == "Select save") {
+    if (strcmp(select_current, "Select save") == 0) {
       FUNCTION_SET_TIMER_SAVE();
     }
 
@@ -901,51 +921,51 @@ void BTN_STATE() {
   
   if (digitalRead(BTN_LEFT) == 1) {
 
-    run_left = "detect_left";
+    strcpy(run_left, "detect_left");
 
   } else {
 
-    if (run_left == "detect_left") { // leave button for run
+    if (strcmp(run_left, "detect_left") == 0) { // leave button for run
       
       
       DEBUG_PRINTLN("LEFT");
       
 
-      if (directory == "root/set_timer") {
+      if (strcmp(directory, "root/set_timer") == 0) {
         
-        if (select_current == "Set hour is active.") {
+        if (strcmp(select_current, "Set hour is active.") == 0) {
           setting_t.hour--;
           if (setting_t.hour < 0) {
               setting_t.hour = 23;
           }
         }
 
-        if (select_current == "Set after hour is active.") {
+        if (strcmp(select_current, "Set after hour is active.") == 0) {
           setting_t.after_hour--;
           if (setting_t.after_hour < 0) {
               setting_t.after_hour = 23;
           }
         }
 
-        if (select_current == "Set minute is active.") {
+        if (strcmp(select_current, "Set minute is active.") == 0) {
           setting_t.minute--;
           if (setting_t.minute < 0) {
               setting_t.minute = 59;
           }
         }
 
-        if (select_current == "Set after minute is active.") {
+        if (strcmp(select_current, "Set after minute is active.") == 0) {
           setting_t.after_minute--;
           if (setting_t.after_minute < 0) {
               setting_t.after_minute = 59;
           }
         }
 
-        lcd.clear();
+        lcd.home();
         FUNCTION_SET_TIMER();
       }
 
-      run_left = "";
+      strcpy(run_left, "");
 
     }
 
@@ -953,70 +973,70 @@ void BTN_STATE() {
 
   if (digitalRead(BTN_RIGHT) == 1) {
 
-    run_right = "detect_right";
+    strcpy(run_right, "detect_right");
 
   } else {
 
-    if (run_right == "detect_right") { // leave button for run
+    if (strcmp(run_right, "detect_right") == 0) { // leave button for run
       
       
       DEBUG_PRINTLN("RIGHT");
       
 
-      if (directory == "root/set_timer") {
+      if (strcmp(directory, "root/set_timer") == 0) {
         
-        if (select_current != "Set hour is active." && select_current != "Set minute is active.") {
-          if (select_current != "Set after hour is active." && select_current != "Set after minute is active.") {
+        if (strcmp(select_current, "Set hour is active.") != 0 && strcmp(select_current, "Set minute is active.") != 0) {
+          if (strcmp(select_current, "Set after hour is active.") != 0 && strcmp(select_current, "Set after minute is active.") != 0) {
             setting_t.move_right++;
 
             if (setting_t.move_right == 3) {
-                select_current = "Select hour";
+                strcpy(select_current, "Select hour");
                 setting_t.move_right = 0;
             }
 
             if (setting_t.move_right == 2) {
-                select_current = "Select save";
+                strcpy(select_current, "Select save");
             }
 
             if (setting_t.move_right == 1) {
-                select_current = "Select minute";
+                strcpy(select_current, "Select minute");
             }
           }
         }
 
-        if (select_current == "Set hour is active.") {
+        if (strcmp(select_current, "Set hour is active.") == 0) {
           setting_t.hour++;
           if (setting_t.hour > 23) {
               setting_t.hour = 0;
           }
         }
 
-        if (select_current == "Set after hour is active.") {
+        if (strcmp(select_current, "Set after hour is active.") == 0) {
           setting_t.after_hour++;
           if (setting_t.after_hour > 23) {
               setting_t.after_hour = 0;
           }
         }
 
-        if (select_current == "Set minute is active.") {
+        if (strcmp(select_current, "Set minute is active.") == 0) {
           setting_t.minute++;
           if (setting_t.minute > 59) {
               setting_t.minute = 0;
           }
         }
 
-        if (select_current == "Set after minute is active.") {
+        if (strcmp(select_current, "Set after minute is active.") == 0) {
           setting_t.after_minute++;
           if (setting_t.after_minute > 59) {
               setting_t.after_minute = 0;
           }
         }
 
-        lcd.clear();
+        lcd.home();
         FUNCTION_SET_TIMER();
       }
 
-      run_right = "";
+      strcpy(run_right, "");
 
     }
 
@@ -1024,52 +1044,52 @@ void BTN_STATE() {
 
   if (digitalRead(BTN_CENTER) == 1) {
     
-    run_center = "detect_center";
+    strcpy(run_center, "detect_center");
 
   } else {
 
-    if (run_center == "detect_center") { // leave button for run
+    if (strcmp(run_center, "detect_center") == 0) { // leave button for run
       
       
       DEBUG_PRINTLN("CENTER");
       
 
-      if (directory == "root/set_timer") {
+      if (strcmp(directory, "root/set_timer") == 0) {
 
-        if (select_current == "Set hour is active.") {
-          select_current = "Set after hour is active.";
+        if (strcmp(select_current, "Set hour is active.") == 0) {
+          strcpy(select_current, "Set after hour is active.");
         }
 
-        if (select_current == "Set minute is active.") {
-          select_current = "Set after minute is active.";
+        if (strcmp(select_current, "Set minute is active.") == 0) {
+          strcpy(select_current, "Set after minute is active.");
         }
 
-        if (select_current == "Select hour") {
-          select_current = "Set hour is active.";
+        if (strcmp(select_current, "Select hour") == 0) {
+          strcpy(select_current, "Set hour is active.");
         }
 
-        if (select_current == "Select minute") {
-          select_current = "Set minute is active.";
+        if (strcmp(select_current, "Select minute") == 0) {
+          strcpy(select_current, "Set minute is active.");
         }
 
-        if (select_current == "Select save") {
+        if (strcmp(select_current, "Select save") == 0) {
 
           if (setting_t.after_hour < setting_t.hour) {
-            lcd.clear();
+            lcd.home();
             setting_t.move_right = 0;
-            select_current = "Select hour";
+            strcpy(select_current, "Select hour");
             FUNCTION_SET_TIMER_HOUR();
           } else {
             if (setting_t.after_minute < setting_t.minute) {
-              lcd.clear();
+              lcd.home();
               setting_t.move_right = 1;
-              select_current = "Select minute";
+              strcpy(select_current, "Select minute");
               FUNCTION_SET_TIMER_MINUTE();
             }
           }
 
           if (setting_t.after_hour >= setting_t.hour && setting_t.after_minute >= setting_t.minute) {
-            select_current = "Save data to eeprom.";
+            strcpy(select_current, "Save data to eeprom.");
             
             DEBUG_PRINTLN("Write");
             
@@ -1087,13 +1107,13 @@ void BTN_STATE() {
 
       }
 
-      if (select_current == "Select timer") { //select timer
-        select_current = "Select hour";
-        lcd.clear();
+      if (strcmp(select_current, "Select timer") == 0) { //select timer
+        strcpy(select_current, "Select hour");
+        lcd.home();
         FUNCTION_SET_TIMER();
       }
 
-      run_center = "";
+      strcpy(run_center, "");
 
     }
 
@@ -1101,45 +1121,45 @@ void BTN_STATE() {
 
   if (digitalRead(BTN_BACK) == 1) {
     
-    run_back = "detect_back";
+    strcpy(run_back, "detect_back");
 
   } else {
 
-    if (run_back == "detect_back") { // leave button for run
+    if (strcmp(run_back, "detect_back") == 0) { // leave button for run
       
       
       DEBUG_PRINTLN("BACK");
       
 
-      if (directory == "root/set_timer") {
+      if (strcmp(directory, "root/set_timer") == 0) {
 
-        if (select_current == "Set hour is active.") {
-          select_current = "Select hour";
-          lcd.clear();
+        if (strcmp(select_current, "Set hour is active.") == 0) {
+          strcpy(select_current, "Select hour");
+          lcd.home();
           FUNCTION_SET_TIMER();
         }
 
-        if (select_current == "Set after hour is active.") {
-          select_current = "Select hour";
-          lcd.clear();
+        if (strcmp(select_current, "Set after hour is active.") == 0) {
+          strcpy(select_current, "Select hour");
+          lcd.home();
           FUNCTION_SET_TIMER();
         }
 
-        if (select_current == "Set minute is active.") {
-          select_current = "Select minute";
-          lcd.clear();
+        if (strcmp(select_current, "Set minute is active.") == 0) {
+          strcpy(select_current, "Select minute");
+          lcd.home();
           FUNCTION_SET_TIMER();
         }
 
-        if (select_current == "Set after minute is active.") {
-          select_current = "Select minute";
-          lcd.clear();
+        if (strcmp(select_current, "Set after minute is active.") == 0) {
+          strcpy(select_current, "Select minute");
+          lcd.home();
           FUNCTION_SET_TIMER();
         }
 
       }
    
-      run_back = "";
+      strcpy(run_back, "");
 
     }
 
@@ -1193,7 +1213,7 @@ void get_modeAuto() {
 
 void loop() {
 
-  if (boot_mode == "setting") {
+  if (strcmp(boot_mode, "setting") == 0) {
 
     // get_heap();
 
@@ -1201,8 +1221,8 @@ void loop() {
       FUNCTION_WRITE_EEPROM();
     } else {
 
-      if (directory == "") {
-        select_current = "Select timer";
+      if (strcmp(directory, "") == 0) {
+        strcpy(select_current, "Select timer");
         FUNCTION_SETTING();
       }
 
@@ -1224,7 +1244,7 @@ void loop() {
 
   } else {
 
-    if (boot_mode == "setting wifi") {
+    if (strcmp(boot_mode, "setting wifi") == 0) {
 
       server.handleClient();
 
@@ -1234,24 +1254,24 @@ void loop() {
       if (Serial.available() > 0) {
 
         switch (Serial.read()) {
-          case 48 : memory_rx += "0"; break;
-          case 49 : memory_rx += "1"; break;
-          case 50 : memory_rx += "2"; break;
-          case 51 : memory_rx += "3"; break;
-          case 52 : memory_rx += "4"; break;
-          case 53 : memory_rx += "5"; break;
-          case 54 : memory_rx += "6"; break;
-          case 55 : memory_rx += "7"; break;
-          case 56 : memory_rx += "8"; break;
-          case 57 : memory_rx += "9"; break;
+          case 48 : strcpy(memory_rx, "0"); break;
+          case 49 : strcpy(memory_rx, "1"); break;
+          case 50 : strcpy(memory_rx, "2"); break;
+          case 51 : strcpy(memory_rx, "3"); break;
+          case 52 : strcpy(memory_rx, "4"); break;
+          case 53 : strcpy(memory_rx, "5"); break;
+          case 54 : strcpy(memory_rx, "6"); break;
+          case 55 : strcpy(memory_rx, "7"); break;
+          case 56 : strcpy(memory_rx, "8"); break;
+          case 57 : strcpy(memory_rx, "9"); break;
         }
 
-        if (memory_rx.equals("1")) {
+        if (strcmp(memory_rx, "1") == 0) {
           DEBUG_PRINT("Messages : ");
           DEBUG_PRINTLN("auto is online");
           EEPROM.write(addr_mode_auto, 1);
           EEPROM.commit();
-          lcd.clear();
+          lcd.home();
           lcd.setCursor(0, 0);
           lcd.print("Messages : ");
           lcd.setCursor(0, 2);
@@ -1259,12 +1279,12 @@ void loop() {
           Esp.reset(); 
         }
 
-        if (memory_rx.equals("0")) {
+        if (strcmp(memory_rx, "0") == 0) {
           DEBUG_PRINT("Messages : ");
           DEBUG_PRINTLN("auto is offline");
           EEPROM.write(addr_mode_auto, 0);
           EEPROM.commit();
-          lcd.clear();
+          lcd.home();
           lcd.setCursor(0, 0);
           lcd.print("Messages : ");
           lcd.setCursor(0, 2);
